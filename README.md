@@ -30,6 +30,7 @@ Version 1.4.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 | `skills/board-prune/` | `/crew:board-prune`: delete old finished runs from the board |
 | `config/crew.example.json` | A starting point for a project's `.claude/crew.json` |
 | `board/index.html` | Source of the Agent Board page (an Artifact with a live database) |
+| `board/index-midnight.html` | The same board in a dark navy "Midnight" look; publish it instead of `index.html` if you prefer it |
 | `CLAUDE-snippet.md` | The section each project adds to its `CLAUDE.md` |
 | `.claude-plugin/` | Plugin and marketplace manifests, so `/plugin` can install the kit |
 | `bundles/crew-full/` | The `crew-full` bundle: crew plus pinned Superpowers |

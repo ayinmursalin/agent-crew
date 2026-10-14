@@ -1,0 +1,602 @@
+<title>Agent Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Midnight: an alternative look for the Agent Board. Same data and behaviour as index.html.
+   Layout: header with filters, a summary panel (stat tiles + progress gauge), then a grid of
+   glass cards (one column on a phone). Deliberately dark-only: deep navy ground, frosted
+   panels, one blue accent for progress and "running"; red only for blocked, and state colour
+   elsewhere is limited to small dots. */
+:root {
+  --bg: #060A1A;
+  --glow: rgba(38, 86, 230, 0.16);
+  --glass-a: rgba(19, 28, 64, 0.80);
+  --glass-b: rgba(10, 15, 38, 0.62);
+  --tile: rgba(255, 255, 255, 0.035);
+  --ink: #F1F4FB;
+  --muted: #A0AEC6;
+  --faint: #6C7895;
+  --line: rgba(160, 174, 220, 0.13);
+  --line-strong: rgba(160, 174, 220, 0.24);
+  --track: rgba(160, 174, 220, 0.14);
+  --accent: #2F7BFF;
+  --accent-2: #5FA2FF;
+  --accent-ink: #8DB8FF;
+  --accent-soft: rgba(47, 123, 255, 0.16);
+  --ok: #4CC9A0;
+  --warn: #E2BC6A;
+  --bad: #F27A7A;
+  --bad-soft: rgba(242, 122, 122, 0.12);
+  --on-accent: #FFFFFF;
+  --sans: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--bg); }
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(1100px 620px at 85% -10%, var(--glow), transparent 60%),
+    radial-gradient(800px 520px at -10% 30%, rgba(38, 86, 230, 0.08), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+.wrap { max-width: 1180px; margin-inline: auto; display: grid; gap: 22px; }
+
+.glass {
+  background: linear-gradient(155deg, var(--glass-a), var(--glass-b));
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 24px 48px -28px rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+}
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.crumb { margin: 0 0 4px; font-size: 12px; color: var(--faint); letter-spacing: 0.02em; }
+h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.015em; }
+.sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px; min-width: 0; align-items: flex-end; }
+.field { display: grid; gap: 5px; min-width: 0; }
+.field label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--faint); }
+select {
+  font: inherit; font-size: 13.5px; color: var(--ink);
+  background: var(--glass-a); border: 1px solid var(--line-strong); border-radius: 12px;
+  padding: 8px 12px; max-width: 100%;
+}
+select option { background: #0E1530; color: var(--ink); }
+select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--muted); padding-block: 8px; cursor: pointer; }
+.check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.check input:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 2px; }
+
+/* Summary */
+.summary { padding: 20px 22px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 28px; align-items: center; }
+.summary .main { display: grid; gap: 16px; min-width: 0; }
+.summary .row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.summary h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; min-width: 0; }
+.runmeta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; font-size: 12px; color: var(--muted); }
+.runmeta .mono { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; background: var(--tile); border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; }
+.runmeta .mono:empty { display: none; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.stat {
+  background: var(--tile); border: 1px solid var(--line); border-radius: 14px;
+  padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.stat .txt { display: grid; gap: 1px; min-width: 0; }
+.stat .k { font-size: 12px; color: var(--muted); font-weight: 500; }
+.stat .n { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stat .ico {
+  flex: none; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent-ink);
+}
+.stat.running.hot .ico { background: var(--accent); color: var(--on-accent); box-shadow: 0 8px 18px -8px rgba(47, 123, 255, 0.8); }
+.stat .ico svg { width: 17px; height: 17px; }
+.stat.blocked.hot .n { color: var(--bad); }
+.stat.blocked.hot .ico { background: var(--bad-soft); color: var(--bad); }
+
+.gauge { display: grid; justify-items: center; gap: 2px; width: 190px; }
+.gauge .dial { position: relative; width: 150px; height: 128px; }
+.gauge svg { width: 150px; height: 150px; display: block; }
+.gauge .trk, .gauge .val { fill: none; stroke-width: 9; stroke-linecap: round; }
+.gauge .trk { stroke: var(--track); stroke-dasharray: 75 100; }
+.gauge .val { stroke: url(#gaugeFill); stroke-dasharray: 0 100; transition: stroke-dasharray 0.6s ease; }
+.gauge .read { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; padding-top: 6px; }
+.gauge .pct { font-size: 28px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.1; }
+.gauge .cap { font-size: 11px; color: var(--faint); letter-spacing: 0.06em; text-transform: uppercase; }
+.gauge .label { font-size: 12px; color: var(--muted); text-align: center; font-variant-numeric: tabular-nums; }
+.gauge .fin { font-size: 11.5px; color: var(--ok); font-weight: 600; }
+.chip-idle { border-radius: 999px; padding: 1px 9px; font-size: 11.5px; font-weight: 600; background: rgba(226, 188, 106, 0.12); color: var(--warn); white-space: nowrap; }
+
+/* Cards */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; align-items: start; }
+.card { padding: 16px 18px; display: grid; gap: 12px; min-width: 0; transition: border-color 0.2s ease; }
+.card:hover { border-color: var(--line-strong); }
+.card[data-status="running"] { border-color: rgba(47, 123, 255, 0.38); }
+.card[data-status="blocked"], .card[data-status="failed"], .card[data-status="changes"] { border-color: rgba(242, 122, 122, 0.36); }
+.card[data-status="abandoned"] { opacity: 0.72; }
+.card[data-stale="true"] { border-style: dashed; }
+.card header { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.head { min-width: 0; display: grid; gap: 6px; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.role {
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+  border: 1px solid var(--line-strong); border-radius: 6px; padding: 1px 7px; color: var(--muted);
+}
+.tag { font-family: var(--mono); font-size: 11.5px; color: var(--faint); }
+.card h3 { margin: 0; font-size: 15.5px; font-weight: 600; letter-spacing: -0.005em; overflow-wrap: anywhere; text-wrap: balance; }
+.pill {
+  border-radius: 999px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--tile); border: 1px solid var(--line); color: var(--muted);
+}
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); flex: none; }
+.s-running { background: var(--accent-soft); border-color: rgba(47, 123, 255, 0.35); color: var(--accent-ink); }
+.s-running::before { background: var(--accent-2); box-shadow: 0 0 0 3px rgba(95, 162, 255, 0.18); }
+.s-done::before { background: var(--ok); }
+.s-blocked, .s-failed, .s-changes { background: var(--bad-soft); border-color: rgba(242, 122, 122, 0.3); color: var(--bad); }
+.s-blocked::before, .s-failed::before, .s-changes::before { background: var(--bad); }
+.s-abandoned { color: var(--faint); }
+.s-resolved { white-space: normal; overflow-wrap: anywhere; max-width: 60%; }
+.s-resolved::before { background: var(--ok); }
+
+.steps { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; }
+.steps i { height: 4px; border-radius: 999px; background: var(--track); }
+.steps i.done { background: linear-gradient(90deg, var(--accent), var(--accent-2)); }
+.steps i.now { background: linear-gradient(90deg, var(--accent-2), rgba(95, 162, 255, 0.35)); background-size: 200% 100%; animation: sweep 1.8s linear infinite; }
+.card[data-status="blocked"] .steps i.now, .card[data-status="failed"] .steps i.now { background: var(--bad); animation: none; }
+@keyframes sweep { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.step { margin: 0; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.activity { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.foot { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12px; color: var(--faint); padding-top: 10px; border-top: 1px solid var(--line); }
+.sha { font-family: var(--mono); font-size: 11.5px; color: var(--ink); background: var(--tile); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
+.verdict { font-weight: 600; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.verdict::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--warn); flex: none; }
+.verdict[data-verdict="ready"]::before { background: var(--ok); }
+.verdict[data-verdict="followups"]::before { background: var(--warn); }
+.verdict[data-verdict="changes"] { color: var(--bad); }
+.verdict[data-verdict="changes"]::before { background: var(--bad); }
+.was { font-size: 11px; color: var(--faint); }
+.stale { color: var(--bad); font-weight: 600; }
+details { font-size: 13px; }
+summary { cursor: pointer; color: var(--accent-ink); font-weight: 600; border-radius: 6px; width: fit-content; }
+summary:hover { color: var(--ink); }
+ol.log { margin: 10px 0 0; padding: 0 0 0 12px; list-style: none; display: grid; gap: 8px; border-left: 1px solid var(--line-strong); }
+ol.log li { display: grid; gap: 1px; min-width: 0; }
+ol.log time { font-family: var(--mono); font-size: 11px; color: var(--faint); }
+ol.log span { overflow-wrap: anywhere; color: var(--muted); }
+
+.empty { padding: 30px 24px; display: grid; gap: 8px; border-style: dashed; }
+.empty h2 { margin: 0; font-size: 16px; font-weight: 700; }
+.empty p { margin: 0; color: var(--muted); max-width: 64ch; }
+.note { font-size: 12px; color: var(--faint); margin: 0; }
+
+@media (max-width: 640px) {
+  .summary { grid-template-columns: minmax(0, 1fr); }
+  .gauge { width: 100%; }
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .gauge .val, .card { transition: none; }
+  .steps i.now { animation: none; }
+}
+</style>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <p class="crumb">Agent Crew / Board</p>
+      <h1>Agent Board</h1>
+      <p class="sub">Live progress of Claude Code agents, one card per agent</p>
+    </div>
+    <div class="filters">
+      <div class="field" id="projectField" hidden>
+        <label for="project">Project</label>
+        <select id="project"></select>
+      </div>
+      <div class="field" id="runField" hidden>
+        <label for="run">Run</label>
+        <select id="run"></select>
+      </div>
+      <label class="check" for="runningOnly"><input type="checkbox" id="runningOnly">Running only</label>
+    </div>
+  </div>
+
+  <section class="summary glass" id="summary" hidden aria-live="polite">
+    <div class="main">
+      <div class="row">
+        <h2 id="runTitle"></h2>
+        <div class="runmeta"><span class="mono" id="runBranch"></span><span id="runStarted"></span><span class="chip-idle" id="runIdle" hidden>Idle</span></div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="gauge">
+      <div class="dial">
+        <svg viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="gaugeFill" x1="0" y1="1" x2="1" y2="0">
+              <stop offset="0" stop-color="#2F7BFF"></stop>
+              <stop offset="1" stop-color="#7FB5FF"></stop>
+            </linearGradient>
+          </defs>
+          <circle class="trk" cx="60" cy="60" r="50" pathLength="100" transform="rotate(135 60 60)"></circle>
+          <circle class="val" id="overallArc" cx="60" cy="60" r="50" pathLength="100" transform="rotate(135 60 60)"></circle>
+        </svg>
+        <div class="read"><span class="pct" id="overallPct">0%</span><span class="cap">Overall</span></div>
+      </div>
+      <span class="label" id="overallLabel">0 of 0 agents done</span>
+      <span class="fin" id="overallFin" hidden>Run finished</span>
+    </div>
+  </section>
+
+  <section class="empty glass" id="empty">
+    <h2>No runs yet</h2>
+    <p>When Claude starts a run, each of its agents appears here as a card with its task, its current step and its latest activity. Cards update on their own.</p>
+  </section>
+
+  <section class="grid" id="grid" aria-live="polite"></section>
+  <p class="note" id="note">Connecting…</p>
+</div>
+
+<script>
+(function () {
+  const ROLE_LABEL = { implementer: "Implementer", reviewer: "Reviewer", research: "Research", "follow-up": "Follow-up" };
+  const STATUS_LABEL = { queued: "Queued", running: "Running", done: "Done", blocked: "Blocked", failed: "Failed" };
+  const STATUS_ORDER = { running: 0, blocked: 1, failed: 1, changes: 1, queued: 2, done: 3, resolved: 3, abandoned: 3 };
+  const DEFAULT_STALE_MIN = 15;
+  const IDLE_MS = 30 * 60 * 1000;
+  const NO_PROJECT = "(no project)";
+
+  let runs = [];
+  let agents = [];
+  let agentsLoaded = false;
+  let agentsUnsub = null;
+  let subscribedRun = null;
+  let db = null;
+  let project = null;
+  let selected = null;
+  let runningOnly = false;
+  const openLogs = new Set();
+  try {
+    project = localStorage.getItem("board.project");
+    selected = localStorage.getItem("board.run");
+    runningOnly = localStorage.getItem("board.runningOnly") === "1";
+  } catch (e) { project = null; selected = null; runningOnly = false; }
+
+  const el = (id) => document.getElementById(id);
+  const num = (v, d) => (typeof v === "number" && isFinite(v) ? v : d);
+  const str = (v) => (typeof v === "string" ? v : "");
+  const projectOf = (r) => str(r.project) || NO_PROJECT;
+
+  function make(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+
+  function relative(ms) {
+    if (!ms) return "—";
+    const d = Date.now() - ms;
+    if (d < 45000) return "just now";
+    const m = Math.round(d / 60000);
+    if (m < 60) return m + " min ago";
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + " h ago";
+    return new Date(ms).toLocaleDateString();
+  }
+
+  function span(ms) {
+    const m = Math.round(ms / 60000);
+    if (ms < 45000) return "moments";
+    if (m < 60) return m + " min";
+    const h = Math.floor(m / 60);
+    return h < 24 ? h + " h" : Math.floor(h / 24) + " d";
+  }
+
+  function clock(ms) {
+    return ms ? new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  }
+
+  function progressOf(a) {
+    if (a.status === "done" || isResolved(a)) return 1;
+    const steps = Math.max(1, num(a.steps, 1));
+    return Math.min(1, Math.max(0, num(a.step, 0) / steps));
+  }
+
+  function fillSelect(select, items, value) {
+    select.textContent = "";
+    for (const [v, label] of items) {
+      const o = make("option", null, label);
+      o.value = v;
+      if (v === value) o.selected = true;
+      select.appendChild(o);
+    }
+  }
+
+  function verdictKey(v) {
+    if (v.indexOf("changes needed") !== -1) return "changes";
+    if (v.indexOf("follow-ups") !== -1) return "followups";
+    if (v.indexOf("ready") !== -1) return "ready";
+    return "";
+  }
+
+  // A review that asked for changes, closed later by the passing re-review named in resolvedBy.
+  function isResolved(a) {
+    return str(a.resolvedBy) !== "" && verdictKey(str(a.verdict)) === "changes";
+  }
+
+  // The agentId without its run prefix, e.g. "t3-reviewer-r2".
+  function shortId(id, run) {
+    const prefix = str(run) + "-";
+    return str(run) && id.indexOf(prefix) === 0 ? id.slice(prefix.length) : id;
+  }
+
+  // The displayed status: what the row says, adjusted for a resolved review, a finished run and a failing verdict.
+  function displayStatus(a, run) {
+    if (isResolved(a)) return "resolved";
+    const status = STATUS_LABEL[a.status] ? a.status : "queued";
+    if (status === "running" && run.status === "done") return "abandoned";
+    if (status === "done" && verdictKey(str(a.verdict)) === "changes") return "changes";
+    return status;
+  }
+
+  // ctx.now is the viewer's clock, clamped to the run's newest updatedAt so an agent clock
+  // running ahead never makes a card look updated in the future.
+  function card(a, ctx) {
+    const status = displayStatus(a, ctx.run);
+    const role = str(a.role) || "agent";
+    const updated = num(a.updatedAt, 0);
+    const stale = status === "running" && updated > 0 && ctx.now - updated > ctx.staleMs;
+    const ago = updated > 0 ? Math.max(0, ctx.now - updated) : 0;
+
+    const c = make("article", "card glass");
+    c.dataset.status = status;
+    c.dataset.stale = String(stale);
+
+    const head = make("header");
+    const h = make("div", "head");
+    const meta = make("div", "meta");
+    const roleChip = make("span", "role", ROLE_LABEL[role] || role);
+    roleChip.dataset.role = role;
+    meta.appendChild(roleChip);
+    if (str(a.task)) meta.appendChild(make("span", "tag", a.task));
+    if (str(a.model)) meta.appendChild(make("span", "tag", a.model));
+    h.appendChild(meta);
+    h.appendChild(make("h3", null, str(a.title) || a.id));
+    head.appendChild(h);
+    const pillText = status === "resolved" ? "Resolved by " + shortId(str(a.resolvedBy), a.run)
+      : STATUS_LABEL[status] || (status === "changes" ? "Changes needed" : "Abandoned");
+    head.appendChild(make("span", "pill s-" + status, pillText));
+    c.appendChild(head);
+
+    const finished = a.status === "done" || status === "resolved";
+    const steps = Math.max(1, Math.min(12, num(a.steps, 1)));
+    const step = finished ? steps : Math.max(0, Math.min(steps, num(a.step, 0)));
+    const bar = make("div", "steps");
+    bar.setAttribute("role", "progressbar");
+    bar.setAttribute("aria-valuemin", "0");
+    bar.setAttribute("aria-valuemax", String(steps));
+    bar.setAttribute("aria-valuenow", String(step));
+    for (let i = 1; i <= steps; i++) {
+      const seg = make("i");
+      if (i < step || (i === step && finished)) seg.className = "done";
+      else if (i === step) seg.className = "now";
+      bar.appendChild(seg);
+    }
+    c.appendChild(bar);
+
+    const label = str(a.stepLabel);
+    c.appendChild(make("p", "step", "Step " + step + " of " + steps + (label ? " · " + label : "")));
+    if (str(a.activity)) c.appendChild(make("p", "activity", a.activity));
+
+    const foot = make("div", "foot");
+    foot.appendChild(make("span", stale ? "stale" : null, stale ? "No update for " + span(ago) : "Updated " + (updated ? span(ago) + " ago" : "—")));
+    if (str(a.tests)) foot.appendChild(make("span", null, a.tests));
+    if (str(a.commit)) foot.appendChild(make("span", "sha", a.commit));
+    if (status === "resolved") {
+      foot.appendChild(make("span", "was", "Review verdict: " + a.verdict));
+    } else if (str(a.verdict)) {
+      const v = make("span", "verdict", a.verdict);
+      v.dataset.verdict = verdictKey(a.verdict);
+      foot.appendChild(v);
+    }
+    c.appendChild(foot);
+
+    const log = Array.isArray(a.log) ? a.log.slice(-12).reverse() : [];
+    if (log.length) {
+      const d = make("details");
+      d.open = openLogs.has(a.id);
+      d.addEventListener("toggle", () => { if (d.open) openLogs.add(a.id); else openLogs.delete(a.id); });
+      d.appendChild(make("summary", null, "Activity (" + log.length + ")"));
+      const ol = make("ol", "log");
+      for (const entry of log) {
+        const li = make("li");
+        li.appendChild(make("time", null, clock(num(entry && entry.at, 0))));
+        li.appendChild(make("span", null, str(entry && entry.text)));
+        ol.appendChild(li);
+      }
+      d.appendChild(ol);
+      c.appendChild(d);
+    }
+    return c;
+  }
+
+  const ICONS = {
+    running: '<path d="M5 3.5v13l11-6.5z" fill="currentColor"/>',
+    queued: '<circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10 6v4.5l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+    blocked: '<circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5.2 14.8l9.6-9.6" stroke="currentColor" stroke-width="2"/>',
+    done: '<path d="M4 10.5l4 4 8-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'
+  };
+
+  function stat(cls, n, k) {
+    const s = make("div", "stat " + cls + (n > 0 ? " hot" : ""));
+    const t = make("div", "txt");
+    t.appendChild(make("span", "k", k));
+    t.appendChild(make("span", "n", String(n)));
+    s.appendChild(t);
+    const i = make("span", "ico");
+    i.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true">' + ICONS[cls] + "</svg>";
+    s.appendChild(i);
+    return s;
+  }
+
+  // Settle which project and run are selected, then (re)subscribe to that run's agents.
+  // Runs only when the runs list or the selection changes, never from render().
+  function resolveSelection() {
+    const projects = [];
+    for (const r of runs) if (!projects.includes(projectOf(r))) projects.push(projectOf(r));
+    if (!projects.includes(project)) project = projects[0] || null;
+    const projectRuns = runs.filter((r) => projectOf(r) === project);
+    if (!projectRuns.some((r) => r.id === selected)) selected = projectRuns.length ? projectRuns[0].id : null;
+    syncAgents();
+  }
+
+  function syncAgents() {
+    if (selected === subscribedRun) return;
+    if (agentsUnsub) { agentsUnsub(); agentsUnsub = null; }
+    subscribedRun = selected;
+    agents = [];
+    agentsLoaded = !selected || !db;
+    if (!selected || !db) return;
+    const runId = selected;
+    agentsUnsub = db.collection("agents").where("run", "==", runId).onSnapshot((snap) => {
+      if (runId !== subscribedRun) return;
+      agents = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+      agentsLoaded = true;
+      render();
+    }, (e) => { if (runId === subscribedRun) fail(e); });
+  }
+
+  function render() {
+    const projects = [];
+    for (const r of runs) if (!projects.includes(projectOf(r))) projects.push(projectOf(r));
+    const projectRuns = runs.filter((r) => projectOf(r) === project);
+
+    fillSelect(el("project"), projects.map((p) => [p, p]), project);
+    el("projectField").hidden = projects.length < 2;
+    fillSelect(el("run"), projectRuns.map((r) => [r.id, str(r.title) || r.id]), selected);
+    el("runField").hidden = projectRuns.length < 2 && projects.length < 2;
+
+    const run = projectRuns.find((r) => r.id === selected);
+    el("empty").hidden = !!run;
+    el("summary").hidden = !run;
+    const grid = el("grid");
+    grid.textContent = "";
+    if (!run) return;
+
+    const mine = agents
+      .filter((a) => a.run === selected)
+      .sort((x, y) => (STATUS_ORDER[displayStatus(x, run)] ?? 2) - (STATUS_ORDER[displayStatus(y, run)] ?? 2) || num(x.startedAt, 0) - num(y.startedAt, 0));
+
+    el("runTitle").textContent = str(run.title) || run.id;
+    el("runBranch").textContent = str(run.branch);
+    el("runStarted").textContent = run.startedAt ? "Started " + relative(num(run.startedAt, 0)) : "";
+
+    // The viewer's clock, clamped so an agent clock running ahead never reads as "in the future".
+    let newest = 0;
+    for (const a of mine) newest = Math.max(newest, num(a.updatedAt, 0));
+    const now = Math.max(Date.now(), newest);
+    const lastSeen = newest || num(run.startedAt, 0);
+    const staleMin = num(run.staleMinutes, DEFAULT_STALE_MIN);
+    const ctx = { run: run, now: now, staleMs: (staleMin > 0 ? staleMin : DEFAULT_STALE_MIN) * 60000 };
+    el("runIdle").hidden = !(run.status !== "done" && lastSeen > 0 && now - lastSeen > IDLE_MS);
+
+    const tally = { running: 0, queued: 0, blocked: 0, done: 0 };
+    for (const a of mine) {
+      const d = displayStatus(a, run);
+      const s = d === "failed" || d === "changes" ? "blocked" : d === "resolved" ? "done" : d;
+      if (s in tally) tally[s]++;
+    }
+    const stats = el("stats");
+    stats.textContent = "";
+    stats.appendChild(stat("running", tally.running, "Running"));
+    stats.appendChild(stat("queued", tally.queued, "Queued"));
+    stats.appendChild(stat("blocked", tally.blocked, "Blocked"));
+    stats.appendChild(stat("done", tally.done, "Done"));
+
+    // With a planned task count the denominator is that count (never fewer than the rows seen),
+    // so rows that are not created yet still count as zero progress.
+    const planned = typeof run.tasks === "number" && isFinite(run.tasks) && run.tasks > 0 ? run.tasks : 0;
+    const denom = planned ? Math.max(planned, mine.length) : mine.length;
+    const sum = mine.reduce((s, a) => s + progressOf(a), 0);
+    const overall = planned ? sum / denom : (mine.length ? sum / mine.length : 0);
+    const pct = Math.round(overall * 100) + "%";
+    el("overallLabel").textContent = tally.done + " of " + denom + " agents done";
+    el("overallPct").textContent = pct;
+    el("overallFin").hidden = run.status !== "done";
+    el("overallArc").style.strokeDasharray = (overall * 75).toFixed(2) + " 100";
+
+    if (!agentsLoaded) {
+      grid.appendChild(make("p", "note", "Loading agents…"));
+      return;
+    }
+    if (!mine.length) {
+      grid.appendChild(make("p", "note", "No agents in this run yet."));
+      return;
+    }
+    let shown = 0;
+    for (const a of mine) {
+      if (runningOnly) {
+        const d = displayStatus(a, run);
+        if (d !== "running" && d !== "blocked" && d !== "failed" && d !== "changes") continue;
+      }
+      grid.appendChild(card(a, ctx));
+      shown++;
+    }
+    if (!shown) grid.appendChild(make("p", "note", "No running or blocked agents in this run."));
+  }
+
+  function remember() {
+    try {
+      localStorage.setItem("board.project", project || "");
+      localStorage.setItem("board.run", selected || "");
+    } catch (e) { /* per-viewer convenience only */ }
+  }
+  el("project").addEventListener("change", (e) => { project = e.target.value; selected = null; resolveSelection(); render(); remember(); });
+  el("run").addEventListener("change", (e) => { selected = e.target.value; resolveSelection(); render(); remember(); });
+  el("runningOnly").checked = runningOnly;
+  el("runningOnly").addEventListener("change", (e) => {
+    runningOnly = e.target.checked;
+    try { localStorage.setItem("board.runningOnly", runningOnly ? "1" : "0"); } catch (err) { /* per-viewer convenience only */ }
+    render();
+  });
+
+  function fail(e) {
+    el("note").textContent = "Live updates stopped (" + ((e && e.code) || "unavailable") + "). Reload the page to reconnect.";
+  }
+
+  render();
+  setInterval(render, 15000);
+
+  (async function connect() {
+    try {
+      db = window.claude && typeof window.claude.use === "function" ? await window.claude.use("db") : null;
+    } catch (e) { db = null; }
+    if (!db) {
+      el("note").textContent = "Live updates aren't available in this view. Open the board on claude.ai while signed in.";
+      return;
+    }
+    el("note").textContent = "Live. Cards update as each agent reports.";
+    db.collection("runs").orderBy("startedAt", "desc").limit(200).onSnapshot((snap) => {
+      runs = snap.docs.map((d) => Object.assign({ id: d.id }, d.data()));
+      resolveSelection();
+      render();
+    }, fail);
+  })();
+})();
+</script>

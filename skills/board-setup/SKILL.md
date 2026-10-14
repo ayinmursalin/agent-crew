@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Edit, Bash, Artifact, ArtifactData, ToolSearch
 
 Publish the Agent Board once; one board serves every project.
 
-This skill's base directory is given at the top of the skill prompt. The plugin root is **two levels above it**. The page is `<base>/../../board/index.html`.
+This skill's base directory is given at the top of the skill prompt. The plugin root is **two levels above it**. The page is `<base>/../../board/index.html`. If the user asks for the Midnight look, use `<base>/../../board/index-midnight.html` instead; it reads the same database.
 
 ## Steps
 
