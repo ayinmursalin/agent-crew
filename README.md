@@ -8,7 +8,7 @@ A Claude Code plugin for shipping large changes with many agents, quickly, witho
 - independent tasks run in parallel in isolated git worktrees;
 - you follow every agent live on the **Agent Board**, phone included.
 
-Version 1.1.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
+Version 1.2.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 
 **Quick start:**
 ```
@@ -20,9 +20,9 @@ Version 1.1.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 
 | In this kit | What it is |
 |---|---|
-| `skills/parallel-parts/SKILL.md` | The workflow: sizing, plan format, review loop, parallel rules, stacking, finishing, board protocol |
-| `agents/part-implementer.md` | Implementer agent (Sonnet): test-first, cross-checks the reference, commits, reports progress |
-| `agents/part-reviewer.md` | Reviewer agent (Opus, read-only): spec + reference + quality in one pass, reports progress |
+| `skills/workflow/SKILL.md` | The workflow: sizing, plan format, review loop, parallel rules, stacking, finishing, board protocol |
+| `agents/implementer.md` | Implementer agent (Sonnet): test-first, cross-checks the reference, commits, reports progress |
+| `agents/reviewer.md` | Reviewer agent (Opus, read-only): spec + reference + quality in one pass, reports progress |
 | `skills/config/` | `/crew:config`: show or change the settings and see where each comes from |
 | `skills/init/` | `/crew:init`: set up a project |
 | `skills/board-setup/` | `/crew:board-setup`: publish the Agent Board |
@@ -51,7 +51,7 @@ These are `claude` CLI commands. In the desktop app, run them in a terminal sess
    ```
    /plugin install crew@agent-crew
    ```
-3. **Reload:** `/reload-plugins`. Then `/plugin` should list both `crew` and `superpowers`, and the agent list should show `crew:part-implementer` and `crew:part-reviewer`.
+3. **Reload:** `/reload-plugins`. Then `/plugin` should list both `crew` and `superpowers`, and the agent list should show `crew:implementer` and `crew:reviewer`.
 
 **Try it locally** without installing: `claude --plugin-dir ./agent-crew`.
 
@@ -124,7 +124,7 @@ Run `/crew:config` with no arguments to see the merged settings and where each o
 
 ## 7. How Claude is made to follow it
 
-- **The skill** (`parallel-parts`) holds the process. Claude loads it whenever a part is planned or run; its description lists those triggers.
+- **The skill** (`workflow`) holds the process. Claude loads it whenever a part is planned or run; its description lists those triggers.
 - **The agents** carry their rules and model choice in their own files. The controller pastes only the task text, not 40 lines of rules every time, so nothing gets dropped.
 - **`CLAUDE.md`** is always loaded. The snippet points to the skill and agents, and holds the project's commands and invariants, which override the generic rules.
 - **The ledger.** A progress file in the repo is updated after every task, so a run survives context compaction: a new context reads the ledger and resumes at the first unlogged task.

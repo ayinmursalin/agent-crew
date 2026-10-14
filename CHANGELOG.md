@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- **Breaking rename:** agents `crew:part-implementer` → `crew:implementer` and `crew:part-reviewer` → `crew:reviewer`; skill `crew:parallel-parts` → `crew:workflow`. The plugin prefix already says "crew", so the old names repeated themselves. "Part" stays the name of the unit of work (one plan, one PR).
+- **Upgrade:** in each project's `CLAUDE.md`, replace those three names (or re-run `/crew:init` and accept the diff).
+
 ## 1.1.0
 
 - **Name:** first public release as **Agent Crew** (repo and marketplace `agent-crew`, plugin `crew`), MIT licensed. Commands are `/crew:*`, agents `crew:part-implementer` / `crew:part-reviewer`, config `.claude/crew.json`.

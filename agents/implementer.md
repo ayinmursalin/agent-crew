@@ -1,5 +1,5 @@
 ---
-name: part-implementer
+name: implementer
 description: Implements exactly one task of a part plan test-first, cross-checked against the reference the plan names, and commits it. Works in the main checkout or in a parallel git worktree. Give it the task's full text, plan-wide notes and, for parallel runs, the prep commit SHA. Reports progress to the Agent Board when given a board URL, an agentId and a version.
 model: sonnet
 tools: Read, Edit, Write, Glob, Grep, Bash, ToolSearch, ArtifactData

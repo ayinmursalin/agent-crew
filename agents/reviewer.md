@@ -1,5 +1,5 @@
 ---
-name: part-reviewer
+name: reviewer
 description: Read-only review of task commits (or a whole part branch) against the plan and the reference it names, covering spec, reference, tests that bite, quality, invariants and suites. Give it the commit range, the plan file and task numbers, the reference sources, and the implementer's quoted red lines and reported counts. Reports progress to the Agent Board when given a board URL, an agentId and a version.
 model: opus
 tools: Read, Glob, Grep, Bash, ToolSearch, ArtifactData

@@ -6,8 +6,8 @@
 
 ## How larger work is planned and run
 
-- Multi-step work follows the **`crew:parallel-parts` skill** on top of **Superpowers**: `superpowers:brainstorming` for the spec, then per part `superpowers:writing-plans` → `superpowers:subagent-driven-development` → `superpowers:finishing-a-development-branch`. One plan and one PR (MR on GitLab) per part, implement → one strong review per task, parallel tasks only in worktrees with separate files, live progress on the Agent Board.
-- Tasks go to the **`crew:part-implementer`** agent; reviews go to the **`crew:part-reviewer`** agent (read-only). Paste the task's full text into each dispatch; don't repeat the rules these agents and this file already carry.
+- Multi-step work follows the **`crew:workflow` skill** on top of **Superpowers**: `superpowers:brainstorming` for the spec, then per part `superpowers:writing-plans` → `superpowers:subagent-driven-development` → `superpowers:finishing-a-development-branch`. One plan and one PR (MR on GitLab) per part, implement → one strong review per task, parallel tasks only in worktrees with separate files, live progress on the Agent Board.
+- Tasks go to the **`crew:implementer`** agent; reviews go to the **`crew:reviewer`** agent (read-only). Paste the task's full text into each dispatch; don't repeat the rules these agents and this file already carry.
 - Settings live in `.claude/crew.json` (project, base branch, model per role, parallelism). See them, or change one, with `/crew:config`. The board URL is a user-level setting, not a project one.
 - Base branch: `[fill in, e.g. main]`. Each run start confirms it with the owner.
 - Plans and the ledger: `[fill in only if not the defaults: docs/superpowers/plans/ and docs/superpowers/ledger.md]`. Each milestone has an overview listing its parts.

@@ -1,9 +1,9 @@
 ---
-name: parallel-parts
+name: workflow
 description: Plan and run a large piece of work as "parts" (one plan, one PR each) with implementer and reviewer agents, parallel tasks in isolated worktrees, a ledger that survives compaction, and live progress on the Agent Board. Use when planning a part, running or finishing a part, resuming a run, asking for run status, running parallel agents, or when asked to go faster without losing quality.
 ---
 
-# Parallel parts
+# Crew workflow
 
 A repeatable way to ship a big change quickly without lowering the quality bar: split it into **parts** of one PR (MR on GitLab) each, plan each part once, implement each task test-first, review each task with a strong model, run independent tasks in parallel, and report every agent's progress live.
 
@@ -19,10 +19,10 @@ A repeatable way to ship a big change quickly without lowering the quality bar: 
 |---|---|---|---|
 | Design | once per feature or milestone | `superpowers:brainstorming` → a spec | Split the work into parts in a milestone overview (§2, §4) |
 | Plan | once per part | `superpowers:writing-plans` | Research fan-out, the lighter plan format, `Model:` tags (§3–4) |
-| Run | each task of the part | `superpowers:subagent-driven-development` | Run start, `part-implementer` / `part-reviewer`, the ledger, parallel worktrees, the board (§5–8, §12) |
+| Run | each task of the part | `superpowers:subagent-driven-development` | Run start, `implementer` / `reviewer`, the ledger, parallel worktrees, the board (§5–8, §12) |
 | Finish | end of the part | `superpowers:verification-before-completion`, then `superpowers:finishing-a-development-branch` | Final review, manual checks, docs pass, stacking (§9–10) |
 
-**TDD is enforced by the implementer's inline rules:** `part-implementer` has no Skill tool, so its own definition makes it see a red failure and quote it. The controller (the main session) follows SDD for the dispatch-and-review loop.
+**TDD is enforced by the implementer's inline rules:** `implementer` has no Skill tool, so its own definition makes it see a red failure and quote it. The controller (the main session) follows SDD for the dispatch-and-review loop.
 
 ## 1. Configuration
 
@@ -171,12 +171,12 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 
 ## 7. Run each task
 
-**Agent names:** installed as a plugin, `crew:part-implementer` and `crew:part-reviewer`; copied into `.claude/agents/`, without the prefix.
+**Agent names:** installed as a plugin, `crew:implementer` and `crew:reviewer`; copied into `.claude/agents/`, without the prefix (rename the copies if the project already has agents called `implementer` or `reviewer`).
 
 **The loop, per task:**
-1. Set its implementer row to `running`, then dispatch **`part-implementer`** with the resolved model. Paste the task's full text, the plan-wide notes, the board URL, `agentId` and row version. The agent carries the generic rules; CLAUDE.md carries the project's.
+1. Set its implementer row to `running`, then dispatch **`implementer`** with the resolved model. Paste the task's full text, the plan-wide notes, the board URL, `agentId` and row version. The agent carries the generic rules; CLAUDE.md carries the project's.
 2. Read its report. `DONE_WITH_CONCERNS` means it changed plan-given code beyond a pure compile fix: weigh the concern before reviewing.
-3. Dispatch **`part-reviewer`** on `models.reviewer` with the commit range, plan path and task numbers, and the implementer's quoted red lines and reported counts.
+3. Dispatch **`reviewer`** on `models.reviewer` with the commit range, plan path and task numbers, and the implementer's quoted red lines and reported counts.
 4. **Guard after every review:** `git status --porcelain` is empty and HEAD is unchanged. Otherwise stop and tell the owner.
 5. **Finalize both board rows** from the returned reports (status, commit, tests or verdict), so a missed agent write never leaves a card running.
 6. Add the ledger row.
@@ -185,7 +185,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 
 **Follow-ups and re-review:**
 - Critical and Important issues are fixed before any task that depends on them; Minor ones are batched into one "review follow-ups" commit per part.
-- Send every fix to `part-implementer` on `models.follow_up` (row `<runId>-t<N>-fix`, or `<runId>-followups` for the Minor batch), then a re-review.
+- Send every fix to `implementer` on `models.follow_up` (row `<runId>-t<N>-fix`, or `<runId>-followups` for the Minor batch), then a re-review.
 - Every Critical or Important fix gets a reviewer pass on its own commit range; the Minor follow-ups commit gets its own pass.
 - Verify a finding you doubt against the code before acting on it, and log a false positive in the ledger.
 
@@ -226,7 +226,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 
 1. **Verify** with `superpowers:verification-before-completion`: the full test suites, lint, and the builds for every target the project has.
 2. **Manual UI checks, only if the project has a UI:** every new or changed screen on each form factor, screenshots taken by the controller. Never wipe app data or uninstall without the owner's go-ahead.
-3. **Final review:** one `part-reviewer` pass (`<runId>-final-review`) over `git diff <base> HEAD`: cross-task consistency, reference spot-checks, stale docs.
+3. **Final review:** one `reviewer` pass (`<runId>-final-review`) over `git diff <base> HEAD`: cross-task consistency, reference spot-checks, stale docs.
 4. **Docs pass, in one commit:** the plan's "As built" note (review changes, deviations, false positives, notes for later parts), the overview status row, and the ledger's final counts and carry-forward.
 5. **Offer the finishing options by name:** "Merge locally", "Push and open a PR", "Keep the branch as-is", "Discard". Push or open a PR only on the owner's choice; write the PR description to a file, never inline in the shell.
 6. **Update the board run** to `status: "done"`.
