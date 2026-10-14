@@ -22,6 +22,11 @@ A repeatable way to ship a big change quickly without lowering the quality bar: 
 | Run | each task of the part | `superpowers:subagent-driven-development` | Run start, `implementer` / `reviewer`, the ledger, parallel worktrees, the board (§5–8, §12) |
 | Finish | end of the part | `superpowers:verification-before-completion`, then `superpowers:finishing-a-development-branch` | Final review, manual checks, docs pass, stacking (§9–10) |
 
+**Design always ends in a written spec.** Brainstorming (superpowers 7+) sizes work as a quick task, a small change, or a project, and writes a design document only for a project. Work that reaches crew is a project by definition, so:
+- **Tell brainstorming the size is "project"** when you invoke it for crew. A small change agreed in chat is not enough to split into parts.
+- **If brainstorming judges the work smaller,** tell the owner and let them choose: do it without crew (plain superpowers, no parts), or keep crew and write the spec.
+- **If the owner skips the questions,** still write the spec at the default path from what is known. Mark every assumption as yours, and get the owner's approval before planning.
+
 **TDD is enforced by the implementer's inline rules:** `implementer` has no Skill tool, so its own definition makes it see a red failure and quote it. The controller (the main session) follows SDD for the dispatch-and-review loop.
 
 ## 1. Configuration

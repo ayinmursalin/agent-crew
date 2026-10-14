@@ -5,6 +5,7 @@
 - **Choose your Superpowers:** two ways to install.
   - `crew-full@agent-crew` (new bundle) installs crew plus `superpowers@agent-crew` 7.0.0, built from source ([obra/superpowers](https://github.com/obra/superpowers) tag `v7.0.0`, pinned to commit `bb92a77`). Use it if you don't have Superpowers or want the tested version.
   - `crew@agent-crew` no longer declares a Superpowers dependency. It uses whichever copy you have, e.g. `superpowers@claude-plugins-official`. `allowCrossMarketplaceDependenciesOn` is removed.
+- **Design always writes a spec:** superpowers 7's brainstorming writes a design document only for work it sizes as a project. `crew:workflow` now tells it the size is "project", lets the owner drop crew when the work is really small, and still writes the spec when the owner skips the questions.
 - **`/crew:init`** checks Superpowers first: missing, two copies, or older than 5.1.0.
 - **Upgrade:** nothing to do if you keep your current Superpowers; updating `crew` leaves it installed. To switch to 7.0.0, uninstall `superpowers@claude-plugins-official` and run `/plugin install crew-full@agent-crew`.
 - **Bumping the pinned Superpowers:** change `ref`, `sha` and `version` of the `superpowers` entry in `.claude-plugin/marketplace.json` (`git ls-remote --tags https://github.com/obra/superpowers` gives the commit).
