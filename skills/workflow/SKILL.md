@@ -35,7 +35,7 @@ A repeatable way to ship a big change quickly without lowering the quality bar: 
 1. **Kit defaults** (table below).
 2. **User level:** `<config dir>/crew.json`. `<config dir>` is `$CLAUDE_CONFIG_DIR` when set, else `~/.claude`. Expand it to an absolute path first (`echo "$CLAUDE_CONFIG_DIR"`, then `echo "$HOME"`), then use the Read tool.
 3. **Project level:** `.claude/crew.json` in the main repo root, committed.
-4. **A chat override** for this run only, e.g. "use haiku for implementation this part". Never write it to a file unless asked.
+4. **A chat override** for this run only, e.g. "use opus for implementation this part". Never write it to a file unless asked.
 5. **A plan task's `Model:` line** (§4).
 
 | Key | Default | Notes |
@@ -65,6 +65,8 @@ A repeatable way to ship a big change quickly without lowering the quality bar: 
 - `maxParallel` must be 1–6.
 
 **Reviewer floor:** if `models.reviewer` resolves to anything weaker than `opus`, or weaker than any implementer tier, warn the owner at run start, ask for an explicit "yes", and record the downgrade in the ledger's `Models:` line. Rank `haiku` < `sonnet` < `opus`. If the reviewer or any implementer tier is anything else (`fable`, `inherit`, a full id), ask the same way. Never lower the reviewer on your own: it is the guard that makes a cheaper implementer safe.
+
+**Implementer floor:** plans give decisions, not code (§4), so the default implementer writes the code itself. If `models.implementer` or a chat override for implementation resolves to `haiku`, warn the owner at run start: Haiku fills gaps poorly; use `sonnet` or above, or keep Haiku for `Model: mechanical` tasks only. Ask for an explicit "yes" and record it in the ledger's `Models:` line. This does not apply to `implementer_mechanical`, whose tasks get full code.
 
 **Model on each dispatch:** pass the resolved value as the Agent tool's `model` parameter and record it on the board row.
 - **Implementer:** the task's `Model:` line, else the chat override, else `models.implementer`.
@@ -133,14 +135,14 @@ Spec: <spec path>
 **`Model:` tags,** only on tasks that need a non-default implementer:
 - `Model: mechanical` (uses `implementer_mechanical`) for mechanical work such as renames, wiring and data ports; the plan then gives the task's full code;
 - `Model: hard` (uses `implementer_hard`) for concurrency, tricky algorithms, or a task that failed review before;
-- or a model value (`haiku`, `sonnet`, `opus`…). Leave the line out for the default.
+- or a model value (`haiku`, `sonnet`, `opus`…). Leave the line out for the default. A task tagged `haiku` counts as mechanical: give its full code.
 
 **Also in the plan:** the base branch, the deviations from the reference, a "Not in this part" list, the expected test counts after each task, which tasks depend on which and which run in parallel, and a self-review (every spec line has a task, no placeholders, names consistent across tasks, every seam another task uses is exact). Pre-flight any code the plan does give for the language's known compile traps.
 
 ## 5. Run start (the controller)
 
 Do these in order before the first dispatch:
-1. **Resolve the config** (§1), check the reviewer floor, and probe the board (§12).
+1. **Resolve the config** (§1), check the reviewer and implementer floors, and probe the board (§12).
 2. **Confirm the base with the owner,** in the same AskUserQuestion batch as the product questions: "Part branch `feat/<milestone>-p<N>-<slug>` will be created from `<baseBranch>`. OK, or stack on another branch (e.g. the previous part's open PR)?" Never assume it silently. A different answer applies to this run only, unless the owner says to save it.
 3. **Create the branch** `feat/<milestone>-p<N>-<slug>` from the confirmed base, and record the base SHA.
 4. **First commit:** the overview update and the part plan, as `docs: <milestone> P<N> plan`, so every worktree created later can contain them.

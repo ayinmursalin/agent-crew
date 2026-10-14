@@ -119,15 +119,15 @@ Brainstorming, specs, plans and the controller run in your main session, on what
 | Level | Where | Example |
 |---|---|---|
 | Kit defaults | built in | implementer `sonnet`, mechanical `haiku`, hard `opus`, reviewer `opus`, research `sonnet`, `maxParallel` 4 |
-| You, everywhere | `<config dir>/crew.json` (`$CLAUDE_CONFIG_DIR` or `~/.claude`) | `/crew:config implementer haiku --user` |
+| You, everywhere | `<config dir>/crew.json` (`$CLAUDE_CONFIG_DIR` or `~/.claude`) | `/crew:config implementer opus --user` |
 | This project | `.claude/crew.json` (committed) | `/crew:config reviewer opus` |
-| One run | say it in chat | "use Haiku for implementation in this part" |
+| One run | say it in chat | "use Opus for implementation in this part" |
 | One task | a line in the plan's task | `Model: mechanical`, `Model: hard` or `Model: opus` |
 
 Run `/crew:config` with no arguments to see the merged settings and where each one comes from. Other keys: `baseBranch`, `maxParallel` (1-6), `staleMinutes`, `plansDir`, `ledger`, `worktreeSetup`, `teamBoard`.
 
 **Picking models:**
-- **Haiku** suits mechanical tasks (`Model: mechanical`); the plan gives their full code.
+- **Haiku** suits mechanical tasks only (`Model: mechanical`); the plan gives their full code. As the default implementer it gets a warning at run start, since other tasks come with decisions, not code.
 - **Sonnet** suits most tasks: the plan gives the decisions (interfaces, tests, values) and it writes the code.
 - **Opus** is for hard tasks. A task whose review fails twice is retried on the `hard` model automatically, and a third failure stops and asks you.
 - **Keep the reviewer on Opus.** It is the guard that lets a cheaper implementer stay safe. If the reviewer would be weaker than `opus` or than any implementer tier, Claude warns you at run start and asks for an explicit "yes".
