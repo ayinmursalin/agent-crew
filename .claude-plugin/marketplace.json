@@ -1,0 +1,16 @@
+{
+  "name": "agent-crew",
+  "description": "Marketplace for the crew plugin (Agent Crew)",
+  "owner": {
+    "name": "M Moersalin"
+  },
+  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
+  "plugins": [
+    {
+      "name": "crew",
+      "description": "Multi-agent delivery workflow on top of Superpowers: parts, implementer and reviewer agents, parallel worktrees, live Agent Board. Requires the superpowers plugin.",
+      "version": "1.1.0",
+      "source": "./"
+    }
+  ]
+}

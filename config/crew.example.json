@@ -1,0 +1,16 @@
+{
+  "project": "my-project",
+  "baseBranch": "main",
+  "models": {
+    "implementer": "sonnet",
+    "implementer_mechanical": "haiku",
+    "implementer_hard": "opus",
+    "reviewer": "opus",
+    "research": "sonnet",
+    "follow_up": "sonnet"
+  },
+  "maxParallel": 4,
+  "staleMinutes": 15,
+  "plansDir": "docs/superpowers/plans",
+  "ledger": "docs/superpowers/ledger.md"
+}
