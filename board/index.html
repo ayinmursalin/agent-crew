@@ -114,6 +114,7 @@ select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); 
 .s-done { background: var(--ok-soft); color: var(--ok); }
 .s-blocked, .s-failed, .s-changes { background: var(--bad-soft); color: var(--bad); }
 .s-abandoned { background: var(--track); color: var(--faint); }
+.s-resolved { background: var(--track); color: var(--muted); white-space: normal; overflow-wrap: anywhere; max-width: 60%; }
 .chip-idle { border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 500; background: var(--warn-soft); color: var(--warn); white-space: nowrap; }
 .check { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--ink); align-self: flex-end; padding-block: 7px; cursor: pointer; }
 .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
@@ -132,6 +133,7 @@ select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); 
 .verdict[data-verdict="ready"] { color: var(--ok); }
 .verdict[data-verdict="followups"] { color: var(--warn); }
 .verdict[data-verdict="changes"] { color: var(--bad); }
+.was { font-size: 11px; color: var(--faint); }
 .stale { color: var(--bad); font-weight: 600; }
 details { font-size: 13px; }
 summary { cursor: pointer; color: var(--accent); font-weight: 500; border-radius: 6px; }
@@ -192,7 +194,7 @@ ol.log span { overflow-wrap: anywhere; }
 (function () {
   const ROLE_LABEL = { implementer: "Implementer", reviewer: "Reviewer", research: "Research", "follow-up": "Follow-up" };
   const STATUS_LABEL = { queued: "Queued", running: "Running", done: "Done", blocked: "Blocked", failed: "Failed" };
-  const STATUS_ORDER = { running: 0, blocked: 1, failed: 1, changes: 1, queued: 2, done: 3, abandoned: 3 };
+  const STATUS_ORDER = { running: 0, blocked: 1, failed: 1, changes: 1, queued: 2, done: 3, resolved: 3, abandoned: 3 };
   const DEFAULT_STALE_MIN = 15;
   const IDLE_MS = 30 * 60 * 1000;
   const NO_PROJECT = "(no project)";
@@ -249,7 +251,7 @@ ol.log span { overflow-wrap: anywhere; }
   }
 
   function progressOf(a) {
-    if (a.status === "done") return 1;
+    if (a.status === "done" || isResolved(a)) return 1;
     const steps = Math.max(1, num(a.steps, 1));
     return Math.min(1, Math.max(0, num(a.step, 0) / steps));
   }
@@ -271,8 +273,20 @@ ol.log span { overflow-wrap: anywhere; }
     return "";
   }
 
-  // The displayed status: what the row says, adjusted for a finished run and for a failing verdict.
+  // A review that asked for changes, closed later by the passing re-review named in resolvedBy.
+  function isResolved(a) {
+    return str(a.resolvedBy) !== "" && verdictKey(str(a.verdict)) === "changes";
+  }
+
+  // The agentId without its run prefix, e.g. "t3-reviewer-r2".
+  function shortId(id, run) {
+    const prefix = str(run) + "-";
+    return str(run) && id.indexOf(prefix) === 0 ? id.slice(prefix.length) : id;
+  }
+
+  // The displayed status: what the row says, adjusted for a resolved review, a finished run and a failing verdict.
   function displayStatus(a, run) {
+    if (isResolved(a)) return "resolved";
     const status = STATUS_LABEL[a.status] ? a.status : "queued";
     if (status === "running" && run.status === "done") return "abandoned";
     if (status === "done" && verdictKey(str(a.verdict)) === "changes") return "changes";
@@ -303,10 +317,12 @@ ol.log span { overflow-wrap: anywhere; }
     h.appendChild(meta);
     h.appendChild(make("h3", null, str(a.title) || a.id));
     head.appendChild(h);
-    head.appendChild(make("span", "pill s-" + status, STATUS_LABEL[status] || (status === "changes" ? "Changes needed" : "Abandoned")));
+    const pillText = status === "resolved" ? "Resolved by " + shortId(str(a.resolvedBy), a.run)
+      : STATUS_LABEL[status] || (status === "changes" ? "Changes needed" : "Abandoned");
+    head.appendChild(make("span", "pill s-" + status, pillText));
     c.appendChild(head);
 
-    const finished = a.status === "done";
+    const finished = a.status === "done" || status === "resolved";
     const steps = Math.max(1, Math.min(12, num(a.steps, 1)));
     const step = finished ? steps : Math.max(0, Math.min(steps, num(a.step, 0)));
     const bar = make("div", "steps");
@@ -330,7 +346,9 @@ ol.log span { overflow-wrap: anywhere; }
     foot.appendChild(make("span", stale ? "stale" : null, stale ? "No update for " + span(ago) : "Updated " + (updated ? span(ago) + " ago" : "—")));
     if (str(a.tests)) foot.appendChild(make("span", null, a.tests));
     if (str(a.commit)) foot.appendChild(make("span", "sha", a.commit));
-    if (str(a.verdict)) {
+    if (status === "resolved") {
+      foot.appendChild(make("span", "was", "Review verdict: " + a.verdict));
+    } else if (str(a.verdict)) {
       const v = make("span", "verdict", a.verdict);
       v.dataset.verdict = verdictKey(a.verdict);
       foot.appendChild(v);
@@ -427,7 +445,7 @@ ol.log span { overflow-wrap: anywhere; }
     const tally = { running: 0, queued: 0, blocked: 0, done: 0 };
     for (const a of mine) {
       const d = displayStatus(a, run);
-      const s = d === "failed" || d === "changes" ? "blocked" : d;
+      const s = d === "failed" || d === "changes" ? "blocked" : d === "resolved" ? "done" : d;
       if (s in tally) tally[s]++;
     }
     const stats = el("stats");

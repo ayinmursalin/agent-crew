@@ -184,20 +184,27 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 
 **Agent names:** installed as a plugin, `crew:implementer` and `crew:reviewer`; copied into `.claude/agents/`, without the prefix (rename the copies if the project already has agents called `implementer` or `reviewer`).
 
+**Finalize on return** (skip it when the board is off, §12)**:** as soon as any agent's report arrives, before acting on it (weighing concerns, the guard, a merge, the next dispatch), finalize its board row from the report, whether or not the agent wrote its own row. Agents often skip their board writes, and a row left `running` holds the overall progress down after the work is done. `get` the row for its version, then one `update` pinned with `if_version` that sets:
+- `status`: `done` for `DONE`, `DONE_WITH_CONCERNS` or any reviewer verdict; `blocked` for `BLOCKED` or `NEEDS_CONTEXT`; `failed` when the agent errored or returned no usable report.
+- `step` = `steps`, a `stepLabel` (`committed`, `verdict`, `blocked` or `failed`), `activity`, `updatedAt`, and the `log` with one closing entry appended (at most 12, newest last).
+- From the report: `commit` and `tests` for an implementer; `verdict` and `tests` for a reviewer.
+
 **The loop, per task:**
 1. Set its implementer row to `running`, then dispatch **`implementer`** with the resolved model. Paste the task's full text, the plan-wide notes, the board URL, `agentId` and row version. The agent carries the generic rules; CLAUDE.md carries the project's.
-2. Read its report. `DONE_WITH_CONCERNS` means it changed plan-given code beyond a pure compile fix: weigh the concern before reviewing.
-3. Dispatch **`reviewer`** on `models.reviewer` with the commit range, plan path and task numbers, and the implementer's quoted red lines and reported counts.
-4. **Guard after every review:** `git status --porcelain` is empty and HEAD is unchanged. Otherwise stop and tell the owner.
-5. **Finalize both board rows** from the returned reports (status, commit, tests or verdict), so a missed agent write never leaves a card running.
-6. Add the ledger row.
+2. **Finalize the implementer row** the moment its report arrives (above).
+3. Read its report. `DONE_WITH_CONCERNS` means it changed plan-given code beyond a pure compile fix: weigh the concern before reviewing.
+4. Set the reviewer row to `running`, then dispatch **`reviewer`** on `models.reviewer` with the commit range, plan path and task numbers, and the implementer's quoted red lines and reported counts.
+5. **Finalize the reviewer row** the moment its report arrives (above).
+6. **Guard after every review:** `git status --porcelain` is empty and HEAD is unchanged. Otherwise stop and tell the owner.
+7. Add the ledger row.
 
 **Batching reviews:** one review may cover several tasks only if no other open task depends on them. Never batch a task done by the `mechanical` model. A batched review gets its own `-t<N>-t<M>-reviewer` row; when it returns, finalize the per-task reviewer rows it replaces with `status: "done"` and `activity: "covered by <batched id>"`.
 
 **Follow-ups and re-review:**
 - Critical and Important issues are fixed before any task that depends on them; Minor ones are batched into one "review follow-ups" commit per part.
-- Send every fix to `implementer` on `models.follow_up` (row `<runId>-t<N>-fix`, or `<runId>-followups` for the Minor batch), then a re-review.
+- Send every fix to `implementer` on `models.follow_up` (row `<runId>-t<N>-fix`, or `<runId>-followups` for the Minor batch), then a re-review (the review's id with `-r2`, `-r3`…, e.g. `<runId>-t<N>-reviewer-r2`).
 - Every Critical or Important fix gets a reviewer pass on its own commit range; the Minor follow-ups commit gets its own pass.
+- **Close resolved reviews on the board.** When a re-review of a fix passes (`✅ ready`, or `approve with follow-ups` with no Critical or Important issue left), set `resolvedBy: "<re-review agentId>"` on the original review row, and on every earlier re-review of the same findings that also returned `❌ changes needed`. Each is its own `update` pinned with `if_version`. Leave their `status` and `verdict` as they are: the board shows them as Resolved and keeps the original verdict visible.
 - Verify a finding you doubt against the code before acting on it, and log a false positive in the ledger.
 
 **Escalation:** "fails review" means the verdict `❌ changes needed`. The second failure of a task re-dispatches it on `implementer_hard`; the third stops the run and asks the owner.
@@ -222,6 +229,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
    4. Run `worktreeSetup`, if the prompt gives one.
 4. **Never resume a returned parallel agent with SendMessage.** A worktree whose agent finished without changes is cleaned up, so a resumed agent wakes in the main checkout. Re-dispatch it fresh with a new `-r2` row.
 5. **Dispatch** with `isolation: "worktree"`, all in one message, at most `maxParallel` at a time. With more tasks than slots, keep a rolling queue: start the next as each one returns. Pass the prep SHA, `worktreeSetup`, any parallel-safe test command CLAUDE.md lists, and the board details.
+   - **Finalize each returning agent's row first** (§7 "Finalize on return"), before merging it or starting the next one in the queue. Parallel agents miss their own board writes as often as sequential ones.
 6. **Merge** in task order: the Agent result names the worktree branch; run `git merge --no-ff <branch>` into the part branch, then the full suite after each merge. Resolve leftover conflicts yourself.
 7. **Review after the merge,** on the part branch, for the merged range (or give the reviewer the worktree path as its working directory before merging).
 8. **Cleanup:** leave harness-made worktrees to the harness (the finishing skill says never remove them); remove only worktrees you created yourself. `.gitignore` must list `.claude/worktrees/` (init adds it).
@@ -240,7 +248,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 3. **Final review:** one `reviewer` pass (`<runId>-final-review`) over `git diff <base> HEAD`: cross-task consistency, reference spot-checks, stale docs.
 4. **Docs pass, in one commit:** the plan's "As built" note (review changes, deviations, false positives, notes for later parts), the overview status row, and the ledger's final counts and carry-forward.
 5. **Offer the finishing options by name:** "Merge locally", "Push and open a PR", "Keep the branch as-is", "Discard". Push or open a PR only on the owner's choice; write the PR description to a file, never inline in the shell.
-6. **Update the board run** to `status: "done"`.
+6. **Sweep the board, then close the run.** `query` on `agents` with `where: [["run", "==", <runId>]]`, paging, and finalize every row whose `status` is not `done`, `blocked` or `failed` (§7 "Finalize on return"), from the agent's report or the ledger. A row whose agent never ran gets `activity: "not run: <reason>"`, with `status: "done"` when its work was covered elsewhere (a batched review, a dropped task) and `failed` otherwise. Then update the board run to `status: "done"`.
 
 ## 11. Resume and status
 
@@ -260,13 +268,14 @@ The Agent Board is an Artifact page over a shared database, written with the `Ar
 
 **Schemas:**
 - `runs/<runId>`: `{project, milestone, part, title, branch, status: "running"|"done", startedAt, tasks, staleMinutes}`. `tasks` is the planned number of agent rows: 2 × planned tasks + 1 final review, raised when retries, follow-ups or batched reviews add rows. `staleMinutes` is the resolved config value.
-- `agents/<agentId>`: `{run, task, title, role, model, status, step, steps, stepLabel, activity, startedAt, updatedAt, commit?, tests?, verdict?, log: [{at, text}]}`.
+- `agents/<agentId>`: `{run, task, title, role, model, status, step, steps, stepLabel, activity, startedAt, updatedAt, commit?, tests?, verdict?, resolvedBy?, log: [{at, text}]}`.
   - `role`: `implementer`, `reviewer`, `research` or `follow-up`.
   - `status`: `queued`, `running`, `done`, `blocked` or `failed`.
   - `verdict`: exactly `"✅ ready"`, `"approve with follow-ups"` or `"❌ changes needed"`.
+  - `resolvedBy`: on a review whose verdict is `"❌ changes needed"`, the `agentId` of the passing re-review that closed its findings (§7). The board then shows the row as Resolved and counts it as done.
 
 **Who writes what:**
-- **Controller:** the run row and the `queued` rows at run start; each row's switch to `running` on dispatch (pass the board URL, `agentId` and returned version in the prompt); research rows at start and finish; the final status of every row from the agent's report; the run's `done`. Research done at plan time, before the run row exists, gets no rows.
+- **Controller:** the run row and the `queued` rows at run start; each row's switch to `running` on dispatch (pass the board URL, `agentId` and returned version in the prompt); research rows at start and finish; the final state of every row as soon as its agent's report arrives, whether or not the agent wrote it (§7 "Finalize on return"); `resolvedBy` on reviews a passing re-review closed (§7); the sweep of the run's rows and the run's `done` (§10). Research done at plan time, before the run row exists, gets no rows.
 - **Each agent:** one `update` of its own row per step, pinned with `if_version`, carrying `step`, `stepLabel`, `activity`, `updatedAt` and the whole `log` (newest last, at most 12 entries). On a version conflict, `get` the row and retry once. Times are epoch ms: `date +%s` with `000` appended.
 
 **Safety:**

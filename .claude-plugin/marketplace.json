@@ -8,13 +8,13 @@
     {
       "name": "crew",
       "description": "Multi-agent delivery workflow on top of Superpowers: parts, implementer and reviewer agents, parallel worktrees, live Agent Board. Uses the superpowers you already have.",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "source": "./"
     },
     {
       "name": "crew-full",
       "description": "crew plus superpowers 7.0.0 (built from source, pinned). Install this if you don't have superpowers or want the tested version.",
-      "version": "1.3.0",
+      "version": "1.4.0",
       "source": "./bundles/crew-full"
     },
     {
