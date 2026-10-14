@@ -2,9 +2,12 @@
 
 ## 1.3.0
 
-- **Superpowers 7.0.0, bundled:** the `agent-crew` marketplace now lists `superpowers` built from source ([obra/superpowers](https://github.com/obra/superpowers) tag `v7.0.0`, pinned to commit `bb92a77`), and `crew` depends on that entry. Installing `crew` installs it; no separate install, and every user gets the same version. The official marketplace's copy (6.4.1) is no longer used, and `allowCrossMarketplaceDependenciesOn` is removed.
-- **Upgrade:** uninstall `superpowers@claude-plugins-official` if you have it, then `/plugin marketplace update agent-crew` and `/plugin install crew@agent-crew`.
-- **Bumping superpowers:** change `ref` and `sha` of the `superpowers` entry in `.claude-plugin/marketplace.json` to the new tag's commit (`git ls-remote --tags https://github.com/obra/superpowers`), plus its `version`.
+- **Choose your Superpowers:** two ways to install.
+  - `crew-full@agent-crew` (new bundle) installs crew plus `superpowers@agent-crew` 7.0.0, built from source ([obra/superpowers](https://github.com/obra/superpowers) tag `v7.0.0`, pinned to commit `bb92a77`). Use it if you don't have Superpowers or want the tested version.
+  - `crew@agent-crew` no longer declares a Superpowers dependency. It uses whichever copy you have, e.g. `superpowers@claude-plugins-official`. `allowCrossMarketplaceDependenciesOn` is removed.
+- **`/crew:init`** checks Superpowers first: missing, two copies, or older than 5.1.0.
+- **Upgrade:** nothing to do if you keep your current Superpowers; updating `crew` leaves it installed. To switch to 7.0.0, uninstall `superpowers@claude-plugins-official` and run `/plugin install crew-full@agent-crew`.
+- **Bumping the pinned Superpowers:** change `ref`, `sha` and `version` of the `superpowers` entry in `.claude-plugin/marketplace.json` (`git ls-remote --tags https://github.com/obra/superpowers` gives the commit).
 
 ## 1.2.0
 

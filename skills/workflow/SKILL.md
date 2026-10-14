@@ -12,8 +12,8 @@ A repeatable way to ship a big change quickly without lowering the quality bar: 
 ## 0. Prerequisite and lifecycle
 
 **Check these six superpowers skills are available** before planning or running: `superpowers:brainstorming`, `superpowers:writing-plans`, `superpowers:subagent-driven-development`, `superpowers:test-driven-development`, `superpowers:finishing-a-development-branch`, `superpowers:verification-before-completion`.
-- The plugin depends on `superpowers@agent-crew` (7.0.0, built from source), so it normally installs automatically.
-- If any are missing, stop and tell the owner to run `/plugin install superpowers@agent-crew`, then restart the session.
+- `crew` uses whichever superpowers the owner has installed. `crew-full@agent-crew` installs crew with superpowers 7.0.0 (built from source, the tested version).
+- If any are missing, stop and tell the owner to run `/plugin install crew-full@agent-crew` (or `/plugin install superpowers@claude-plugins-official` to use their own), then restart the session.
 
 | Step | When | Skill that drives it | What this skill adds |
 |---|---|---|---|
