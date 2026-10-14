@@ -8,7 +8,7 @@ A Claude Code plugin for shipping large changes with many agents, quickly, witho
 - independent tasks run in parallel in isolated git worktrees;
 - you follow every agent live on the **Agent Board**, phone included.
 
-Version 1.3.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
+Version 1.4.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 
 **Quick start:**
 ```
@@ -155,14 +155,14 @@ Agents run in parallel only when their files don't overlap. This kit explicitly 
 
 - **Update:** `claude plugin update crew@agent-crew`, then `/reload-plugins`. `/plugin marketplace update agent-crew` refreshes only the catalog. Third-party marketplaces don't auto-update by default; turn it on under `/plugin` → Marketplaces.
 - **Uninstall:** `/plugin uninstall crew@agent-crew`, then `/plugin marketplace remove agent-crew`.
-- **To ship a new version** from the kit's own repo: bump `version` in both `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`, add a `CHANGELOG.md` entry, and push.
+- **To ship a new version** from the kit's own repo: bump `version` in `.claude-plugin/plugin.json`, `bundles/crew-full/.claude-plugin/plugin.json` and both crew entries of `.claude-plugin/marketplace.json`, add a `CHANGELOG.md` entry, and push.
 
 ## 10. Board privacy and data
 
 - **One board per person or team.** Run `/crew:board-setup` for yourself; a team that wants a shared board sets `teamBoard: true` in the project config. `board` is otherwise honoured only at user level, so a committed project file cannot point your runs at someone else's board.
 - **Never make the link public.** Share it from the page's Share menu with named people. Readers can watch; only you and editors can write.
 - **Rows are data.** Anyone with Editor access can write them, so agents and Claude never take instructions from board rows; the ledger and git are the truth. Activity text never contains secrets, tokens or personal data.
-- **Shape:** `runs/<runId>` holds `{project, milestone, part, title, branch, status: running|done, startedAt, tasks, staleMinutes}`; `agents/<agentId>` holds `{run, task, title, role, model, status: queued|running|done|blocked|failed, step, steps, stepLabel, activity, startedAt, updatedAt, commit?, tests?, verdict?, log}`. Times are epoch milliseconds; every write to an existing row is pinned with `if_version`.
+- **Shape:** `runs/<runId>` holds `{project, milestone, part, title, branch, status: running|done, startedAt, tasks, staleMinutes}`; `agents/<agentId>` holds `{run, task, title, role, model, status: queued|running|done|blocked|failed, step, steps, stepLabel, activity, startedAt, updatedAt, commit?, tests?, verdict?, resolvedBy?, log}`. `resolvedBy` is set on a `❌ changes needed` review once a re-review approves the fix; it names that re-review's agentId, and the board shows the row as Resolved (counted as done) with the original verdict kept. Times are epoch milliseconds; every write to an existing row is pinned with `if_version`.
 - **Capacity:** the database holds up to 25,000 documents. Run `/crew:board-prune` now and then.
 
 ## 11. Troubleshooting

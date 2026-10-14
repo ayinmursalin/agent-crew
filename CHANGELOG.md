@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0
+
+- **Resolved reviews no longer stay Blocked.** A review that said `❌ changes needed` used to count as Blocked forever, even after the fix was re-reviewed and approved, so a finished run could show "3 Blocked".
+  - Agent rows have a new optional field, `resolvedBy`: the agentId of the re-review that closed the review's findings.
+  - The board shows such a row with a grey "Resolved by <id>" pill, a neutral stripe, and the original verdict in small text. It counts as Done in the tally and the overall progress, and "Running only" hides it.
+  - `crew:workflow` §7: when a re-review of a fix passes (`✅ ready`, or `approve with follow-ups` with no Critical or Important left), the controller sets `resolvedBy` on the original review row and on any earlier re-review that asked for changes, pinned with `if_version`.
+- **The controller finalizes every board row.** Agents that skipped their own board writes left rows at "running, step 0", holding the overall progress down after the work was done.
+  - `crew:workflow` §7: as soon as an agent's report arrives, before anything else, the controller sets the row's final status, `step = steps`, `stepLabel`, and the commit, tests or verdict from the report, whether or not the agent wrote its row. §8 does the same for each returning parallel agent.
+  - §10: before marking the run done, the controller queries all of the run's rows and finalizes any that are not done, blocked or failed.
+  - `crew:implementer` and `crew:reviewer`: the board stays best-effort, but a deferred `ArtifactData` tool is loaded first, never a reason to skip.
+- **Upgrade:** `claude plugin update crew@agent-crew` in each project, and republish `board/index.html` to your existing board URL (Artifact publish with that `url`, so the link stays the same) so it renders resolved reviews. Old rows need no change.
+
 ## 1.3.0
 
 - **Choose your Superpowers:** two ways to install.

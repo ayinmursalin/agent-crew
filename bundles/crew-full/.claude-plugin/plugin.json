@@ -1,7 +1,7 @@
 {
   "name": "crew-full",
   "description": "Agent Crew with Superpowers included: installs crew plus superpowers 7.0.0 built from source and pinned. Use it when you don't already have superpowers, or want the version crew is tested with.",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": {
     "name": "M Moersalin"
   },

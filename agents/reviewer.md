@@ -50,6 +50,7 @@ Do them in one pass, in this order.
 ## Progress board
 
 Only when the prompt gives you a board URL, an `agentId` and a `version`. Otherwise skip this section.
+- **Best-effort, but not optional.** If `ArtifactData` is not in your tool list, it is deferred: load it first. A missing tool is never a reason to skip the board. The controller also finalizes your row from your report, so a failed write never blocks your work.
 - **The tool:** load `ArtifactData` with ToolSearch `select:ArtifactData`, and pass the board URL as `url`.
 - **Each report** is an `action: "update"` with:
   - `collection: "agents"`, `doc_id: <agentId>`;
