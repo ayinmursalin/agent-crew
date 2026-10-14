@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.0
+
+- **Superpowers 7.0.0, bundled:** the `agent-crew` marketplace now lists `superpowers` built from source ([obra/superpowers](https://github.com/obra/superpowers) tag `v7.0.0`, pinned to commit `bb92a77`), and `crew` depends on that entry. Installing `crew` installs it; no separate install, and every user gets the same version. The official marketplace's copy (6.4.1) is no longer used, and `allowCrossMarketplaceDependenciesOn` is removed.
+- **Upgrade:** uninstall `superpowers@claude-plugins-official` if you have it, then `/plugin marketplace update agent-crew` and `/plugin install crew@agent-crew`.
+- **Bumping superpowers:** change `ref` and `sha` of the `superpowers` entry in `.claude-plugin/marketplace.json` to the new tag's commit (`git ls-remote --tags https://github.com/obra/superpowers`), plus its `version`.
+
 ## 1.2.0
 
 - **Breaking rename:** agents `crew:part-implementer` → `crew:implementer` and `crew:part-reviewer` → `crew:reviewer`; skill `crew:parallel-parts` → `crew:workflow`. The plugin prefix already says "crew", so the old names repeated themselves. "Part" stays the name of the unit of work (one plan, one PR).

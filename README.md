@@ -34,7 +34,8 @@ Version 1.2.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 
 ## 1. Prerequisites
 
-- **Superpowers** (`superpowers@claude-plugins-official`). It is declared as a dependency, so installing the kit installs it automatically. Tested with superpowers 5.1.0.
+- **Superpowers 7.0.0.** You don't install it yourself. This marketplace lists superpowers built from source ([obra/superpowers](https://github.com/obra/superpowers) at tag `v7.0.0`, pinned to its commit), and `crew` depends on it, so installing `crew` installs it as `superpowers@agent-crew`. The official marketplace's copy is older (6.4.1).
+- **If you already have `superpowers@claude-plugins-official`**, uninstall it first (`/plugin uninstall superpowers@claude-plugins-official`). Two enabled plugins named `superpowers` make Claude Code drop one copy's hooks.
 - A **claude.ai sign-in**, only for the optional Agent Board.
 
 ## 2. Install
@@ -51,7 +52,7 @@ These are `claude` CLI commands. In the desktop app, run them in a terminal sess
    ```
    /plugin install crew@agent-crew
    ```
-3. **Reload:** `/reload-plugins`. Then `/plugin` should list both `crew` and `superpowers`, and the agent list should show `crew:implementer` and `crew:reviewer`.
+3. **Reload:** `/reload-plugins`. Then `/plugin` should list both `crew` and `superpowers` (from `agent-crew`, version 7.0.0), and the agent list should show `crew:implementer` and `crew:reviewer`.
 
 **Try it locally** without installing: `claude --plugin-dir ./agent-crew`.
 
@@ -160,7 +161,8 @@ Agents run in parallel only when their files don't overlap. This kit explicitly 
 | Problem | Fix |
 |---|---|
 | The agents or commands don't appear | Run `/reload-plugins`; check `/plugin` shows `crew` enabled. Open `/plugin` → Errors, or run `claude plugin details crew` |
-| "Superpowers skills missing" | `/plugin install superpowers@claude-plugins-official`, then `/reload-plugins`. The dependency should install it automatically; `claude plugin details crew` shows if it did not |
+| "Superpowers skills missing" | `/plugin install superpowers@agent-crew`, then `/reload-plugins`. The dependency should install it automatically; `claude plugin details crew` shows if it did not |
+| Two `superpowers` plugins, or the wrong version | Uninstall `superpowers@claude-plugins-official` and keep `superpowers@agent-crew` (7.0.0) |
 | The board stays on "Connecting…" or says live updates aren't available | Open it on claude.ai while signed in. The live database only works inside the claude.ai viewer |
 | A card never moves | That agent got no `agentId` in its prompt, or `ArtifactData` isn't available to it. The controller then finalizes its row from the report |
 | Approval prompts for every board write | Allow the `ArtifactData` tool when first asked |
