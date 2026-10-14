@@ -34,6 +34,7 @@ If you are ever resumed after returning, stop: your worktree may be gone. The co
   - Then implement until they pass.
   - Never weaken, skip or delete a test to get green. If a test seems wrong, stop and report it.
 - **Plan code vs specs:**
+  - **Where the plan gives decisions** (signatures, test names and assertions, values), write the code to match them exactly. Never change a signature another task uses.
   - **Where the plan gives code,** use it. If it doesn't compile, make the smallest fix and report it.
   - **Where the plan gives a spec** (usually UI), build it with only the project's existing design tokens, components and string keys.
 - **Concerns rule:** any fix beyond a pure compile error to code the plan gave means the status is `DONE_WITH_CONCERNS`. Say what you changed and why.

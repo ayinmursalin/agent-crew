@@ -127,8 +127,8 @@ Brainstorming, specs, plans and the controller run in your main session, on what
 Run `/crew:config` with no arguments to see the merged settings and where each one comes from. Other keys: `baseBranch`, `maxParallel` (1-6), `staleMinutes`, `plansDir`, `ledger`, `worktreeSetup`, `teamBoard`.
 
 **Picking models:**
-- **Haiku** suits tasks where the plan already contains the full code.
-- **Sonnet** suits tasks built from a spec, such as UI and integration.
+- **Haiku** suits mechanical tasks (`Model: mechanical`); the plan gives their full code.
+- **Sonnet** suits most tasks: the plan gives the decisions (interfaces, tests, values) and it writes the code.
 - **Opus** is for hard tasks. A task whose review fails twice is retried on the `hard` model automatically, and a third failure stops and asks you.
 - **Keep the reviewer on Opus.** It is the guard that lets a cheaper implementer stay safe. If the reviewer would be weaker than `opus` or than any implementer tier, Claude warns you at run start and asks for an explicit "yes".
 

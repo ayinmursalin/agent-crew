@@ -97,7 +97,7 @@ A repeatable way to ship a big change quickly without lowering the quality bar: 
   - the behaviour or reference it implements: specs, a reference implementation, tickets, and any reference tests to port;
   - shared pieces: components, test helpers, analytics.
 - **Ask each agent for exact names and `file:line`.**
-- **Confirm 2–3 load-bearing facts yourself** with the Read tool before writing plan code against them.
+- **Confirm 2–3 load-bearing facts yourself** with the Read tool before writing plan steps against them.
 - **Ask the owner every product question at planning time, in one AskUserQuestion batch** (up to 4 questions), so the run never stops for them.
 
 ## 4. Write a lighter plan
@@ -122,16 +122,20 @@ Spec: <spec path>
 - <regroupings, renumberings, cross-part decisions>
 ```
 
-**Full code where it pays:** pure logic and domain rules, every test, and every shared seam (interfaces, route and argument types, dependency-injection entries).
+**Decisions, not code.** As in writing-plans (superpowers 6.4.2+), a step records what the implementer can't work out alone, not the code itself:
+- **Shared seams, exactly:** every interface another task uses (signatures, types, route and argument types, dependency-injection entries), with its file path. Parallel tasks build against these in separate worktrees, so a vague seam breaks the merge.
+- **Tests by name and assertion:** each test's name and the exact values it asserts. They are the spec the reviewer checks against.
+- **Code only where the code is the decision:** an algorithm or domain rule the spec doesn't determine, a ported formula, a known trap.
+- **Full code for `Model: mechanical` tasks:** a weaker implementer copies better than it infers.
 
-**UI as a spec, not code.** This is a deliberate exception to writing-plans' "complete code in every step"; logic, tests and seams still get full code. For each view give the file path and public interface, the design tokens, spacing and text styles by name, the strings by key, the interactions, the analytics calls and the edge cases. The implementer writes the view; the reviewer checks it against the same source.
+**UI as a spec.** For each view give the file path and public interface, the design tokens, spacing and text styles by name, the strings by key, the interactions, the analytics calls and the edge cases. The implementer writes the view; the reviewer checks it against the same source.
 
 **`Model:` tags,** only on tasks that need a non-default implementer:
-- `Model: mechanical` (uses `implementer_mechanical`) when the plan already gives the full code, so the task is mostly copying it and running tests;
+- `Model: mechanical` (uses `implementer_mechanical`) for mechanical work such as renames, wiring and data ports; the plan then gives the task's full code;
 - `Model: hard` (uses `implementer_hard`) for concurrency, tricky algorithms, or a task that failed review before;
 - or a model value (`haiku`, `sonnet`, `opus`…). Leave the line out for the default.
 
-**Also in the plan:** the base branch, the deviations from the reference, a "Not in this part" list, the expected test counts after each task, which tasks depend on which and which run in parallel, and a self-review (every spec line has a task, no placeholders, names consistent across tasks). Pre-flight the plan's code for the language's known compile traps.
+**Also in the plan:** the base branch, the deviations from the reference, a "Not in this part" list, the expected test counts after each task, which tasks depend on which and which run in parallel, and a self-review (every spec line has a task, no placeholders, names consistent across tasks, every seam another task uses is exact). Pre-flight any code the plan does give for the language's known compile traps.
 
 ## 5. Run start (the controller)
 

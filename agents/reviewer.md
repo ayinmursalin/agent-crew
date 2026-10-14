@@ -30,7 +30,7 @@ Do them in one pass, in this order.
 
 1. **Spec**
    - Does the diff do exactly what the plan's tasks say? Look for missing pieces and for extra, unrequested ones.
-   - Where the plan gives code, does the commit match it? Is any difference justified?
+   - Do signatures, test names and assertions, and values match the plan exactly? Where the plan gives code, does the commit match it? Is any difference justified?
    - Where the plan gives a UI spec, does the UI follow it?
 2. **Reference**
    - Read the reference the task names: a spec, a reference implementation, the tests being ported.
