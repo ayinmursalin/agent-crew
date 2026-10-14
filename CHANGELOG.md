@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.3.0
+
+- **Choose your Superpowers:** two ways to install.
+  - `crew-full@agent-crew` (new bundle) installs crew plus `superpowers@agent-crew` 7.0.0, built from source ([obra/superpowers](https://github.com/obra/superpowers) tag `v7.0.0`, pinned to commit `bb92a77`). Use it if you don't have Superpowers or want the tested version.
+  - `crew@agent-crew` no longer declares a Superpowers dependency. It uses whichever copy you have, e.g. `superpowers@claude-plugins-official`. `allowCrossMarketplaceDependenciesOn` is removed.
+- **Design always writes a spec:** superpowers 7's brainstorming writes a design document only for work it sizes as a project. `crew:workflow` now tells it the size is "project", lets the owner drop crew when the work is really small, and still writes the spec when the owner skips the questions.
+- **Plans record decisions, not code,** matching writing-plans since superpowers 6.4.2: exact seams between tasks, test names and assertions, and code only where the code is the decision. `Model: mechanical` tasks still get full code. The implementer and reviewer check against those decisions.
+- **Implementer floor:** a default implementer of `haiku` (config or chat override) now gets a warning at run start and needs the owner's "yes", since plans no longer carry code. `implementer_mechanical` stays `haiku`. Examples in the README and `/crew:config` no longer suggest Haiku as the default implementer.
+- **`/crew:init`** checks Superpowers first: missing, two copies, or older than 5.1.0.
+- **Upgrade:** nothing to do if you keep your current Superpowers; updating `crew` leaves it installed. To switch to 7.0.0, uninstall `superpowers@claude-plugins-official` and run `/plugin install crew-full@agent-crew`.
+- **Bumping the pinned Superpowers:** change `ref`, `sha` and `version` of the `superpowers` entry in `.claude-plugin/marketplace.json` (`git ls-remote --tags https://github.com/obra/superpowers` gives the commit).
+
 ## 1.2.0
 
 - **Breaking rename:** agents `crew:part-implementer` → `crew:implementer` and `crew:part-reviewer` → `crew:reviewer`; skill `crew:parallel-parts` → `crew:workflow`. The plugin prefix already says "crew", so the old names repeated themselves. "Part" stays the name of the unit of work (one plan, one PR).

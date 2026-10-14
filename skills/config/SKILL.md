@@ -48,6 +48,7 @@ Read the files with the Read tool. A missing file is fine; skip it. If a file is
 - **`board` rule:** a `board` found in the project file is ignored unless that same file sets `teamBoard: true`. When ignored, warn: "board in the project config is ignored (it would publish run data to a shared URL); set it at user level, or set teamBoard: true for a team board".
 - `worktreeSetup` is a non-empty command; leave the key out for none.
 - **Reviewer floor:** rank `haiku` < `sonnet` < `opus`. If `models.reviewer` resolves to anything weaker than `opus`, or weaker than any implementer tier, or the reviewer or any implementer tier is unrankable (`fable`, `inherit`, a full id), warn that the reviewer should not be weaker than the implementers; a run needs the owner's explicit "yes" and records the downgrade in the ledger.
+- **Implementer floor:** if `models.implementer` is `haiku`, warn that plans give decisions, not code, so the default implementer should be `sonnet` or above; Haiku belongs on `implementer_mechanical`. A run needs the owner's explicit "yes".
 
 ## With no arguments
 
@@ -55,7 +56,7 @@ Print one table with the columns setting, value and source (kit default, user or
 
 ## With `key value`
 
-Examples: `implementer haiku`, `reviewer opus`, `baseBranch develop`, `maxParallel 2`, `board https://claude.ai/artifact/<id> --user`.
+Examples: `implementer opus`, `reviewer opus`, `baseBranch develop`, `maxParallel 2`, `board https://claude.ai/artifact/<id> --user`.
 
 1. **Resolve the key.** A role name (`implementer`, `implementer_mechanical`, `implementer_hard`, `reviewer`, `research`, `follow_up`) means `models.<role>`. Other keys are top-level.
 2. **Pick the file.** The project file, or the user file when `--user` is given. Create it with only this key if missing. `board` without `--user` is refused: tell the owner to add `--user`, or to set `teamBoard true` first for a team board.

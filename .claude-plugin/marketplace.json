@@ -4,13 +4,31 @@
   "owner": {
     "name": "M Moersalin"
   },
-  "allowCrossMarketplaceDependenciesOn": ["claude-plugins-official"],
   "plugins": [
     {
       "name": "crew",
-      "description": "Multi-agent delivery workflow on top of Superpowers: parts, implementer and reviewer agents, parallel worktrees, live Agent Board. Requires the superpowers plugin.",
-      "version": "1.2.0",
+      "description": "Multi-agent delivery workflow on top of Superpowers: parts, implementer and reviewer agents, parallel worktrees, live Agent Board. Uses the superpowers you already have.",
+      "version": "1.3.0",
       "source": "./"
+    },
+    {
+      "name": "crew-full",
+      "description": "crew plus superpowers 7.0.0 (built from source, pinned). Install this if you don't have superpowers or want the tested version.",
+      "version": "1.3.0",
+      "source": "./bundles/crew-full"
+    },
+    {
+      "name": "superpowers",
+      "description": "Superpowers 7.0.0 from source (obra/superpowers), pinned for crew. Core skills library: brainstorming, plans, TDD, subagent-driven development.",
+      "version": "7.0.0",
+      "source": {
+        "source": "github",
+        "repo": "obra/superpowers",
+        "ref": "v7.0.0",
+        "sha": "bb92a77741419a4ab5f06e711a283343f1ada0c3"
+      },
+      "license": "MIT",
+      "homepage": "https://github.com/obra/superpowers"
     }
   ]
 }

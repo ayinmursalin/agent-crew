@@ -8,15 +8,16 @@ A Claude Code plugin for shipping large changes with many agents, quickly, witho
 - independent tasks run in parallel in isolated git worktrees;
 - you follow every agent live on the **Agent Board**, phone included.
 
-Version 1.2.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
+Version 1.3.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 
 **Quick start:**
 ```
 /plugin marketplace add ayinmursalin/agent-crew
-/plugin install crew@agent-crew
+/plugin install crew-full@agent-crew
 /reload-plugins
 /crew:init
 ```
+`crew-full` is crew plus Superpowers 7.0.0. Already have Superpowers and want to keep yours? Install `crew@agent-crew` instead (§1).
 
 | In this kit | What it is |
 |---|---|
@@ -31,10 +32,18 @@ Version 1.2.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 | `board/index.html` | Source of the Agent Board page (an Artifact with a live database) |
 | `CLAUDE-snippet.md` | The section each project adds to its `CLAUDE.md` |
 | `.claude-plugin/` | Plugin and marketplace manifests, so `/plugin` can install the kit |
+| `bundles/crew-full/` | The `crew-full` bundle: crew plus pinned Superpowers |
 
 ## 1. Prerequisites
 
-- **Superpowers** (`superpowers@claude-plugins-official`). It is declared as a dependency, so installing the kit installs it automatically. Tested with superpowers 5.1.0.
+- **Superpowers** (5.1.0 or later; tested with 7.0.0). Pick one install:
+
+  | Install | You get | Use it when |
+  |---|---|---|
+  | `crew-full@agent-crew` | crew + `superpowers@agent-crew` 7.0.0, built from source ([obra/superpowers](https://github.com/obra/superpowers) tag `v7.0.0`, pinned to its commit) | You don't have Superpowers, or want the tested version |
+  | `crew@agent-crew` | crew only; it uses the Superpowers you already have | You already have Superpowers (e.g. `superpowers@claude-plugins-official`, 6.4.1 today) and want to keep it |
+
+  Don't keep both copies enabled: two plugins named `superpowers` make Claude Code drop one copy's hooks. `/crew:init` checks this.
 - A **claude.ai sign-in**, only for the optional Agent Board.
 
 ## 2. Install
@@ -47,11 +56,12 @@ These are `claude` CLI commands. In the desktop app, run them in a terminal sess
    /plugin marketplace add https://github.com/ayinmursalin/agent-crew.git
    /plugin marketplace add /absolute/path/to/agent-crew
    ```
-2. **Install.** From the shell, `claude plugin install crew@agent-crew` works too:
+2. **Install** one of the two (§1). From the shell, `claude plugin install …` works too:
    ```
-   /plugin install crew@agent-crew
+   /plugin install crew-full@agent-crew    # crew + Superpowers 7.0.0
+   /plugin install crew@agent-crew         # crew only, keeps your Superpowers
    ```
-3. **Reload:** `/reload-plugins`. Then `/plugin` should list both `crew` and `superpowers`, and the agent list should show `crew:implementer` and `crew:reviewer`.
+3. **Reload:** `/reload-plugins`. Then `/plugin` should list `crew` and one `superpowers`, and the agent list should show `crew:implementer` and `crew:reviewer`.
 
 **Try it locally** without installing: `claude --plugin-dir ./agent-crew`.
 
@@ -109,16 +119,16 @@ Brainstorming, specs, plans and the controller run in your main session, on what
 | Level | Where | Example |
 |---|---|---|
 | Kit defaults | built in | implementer `sonnet`, mechanical `haiku`, hard `opus`, reviewer `opus`, research `sonnet`, `maxParallel` 4 |
-| You, everywhere | `<config dir>/crew.json` (`$CLAUDE_CONFIG_DIR` or `~/.claude`) | `/crew:config implementer haiku --user` |
+| You, everywhere | `<config dir>/crew.json` (`$CLAUDE_CONFIG_DIR` or `~/.claude`) | `/crew:config implementer opus --user` |
 | This project | `.claude/crew.json` (committed) | `/crew:config reviewer opus` |
-| One run | say it in chat | "use Haiku for implementation in this part" |
+| One run | say it in chat | "use Opus for implementation in this part" |
 | One task | a line in the plan's task | `Model: mechanical`, `Model: hard` or `Model: opus` |
 
 Run `/crew:config` with no arguments to see the merged settings and where each one comes from. Other keys: `baseBranch`, `maxParallel` (1-6), `staleMinutes`, `plansDir`, `ledger`, `worktreeSetup`, `teamBoard`.
 
 **Picking models:**
-- **Haiku** suits tasks where the plan already contains the full code.
-- **Sonnet** suits tasks built from a spec, such as UI and integration.
+- **Haiku** suits mechanical tasks only (`Model: mechanical`); the plan gives their full code. As the default implementer it gets a warning at run start, since other tasks come with decisions, not code.
+- **Sonnet** suits most tasks: the plan gives the decisions (interfaces, tests, values) and it writes the code.
 - **Opus** is for hard tasks. A task whose review fails twice is retried on the `hard` model automatically, and a third failure stops and asks you.
 - **Keep the reviewer on Opus.** It is the guard that lets a cheaper implementer stay safe. If the reviewer would be weaker than `opus` or than any implementer tier, Claude warns you at run start and asks for an explicit "yes".
 
@@ -160,7 +170,9 @@ Agents run in parallel only when their files don't overlap. This kit explicitly 
 | Problem | Fix |
 |---|---|
 | The agents or commands don't appear | Run `/reload-plugins`; check `/plugin` shows `crew` enabled. Open `/plugin` → Errors, or run `claude plugin details crew` |
-| "Superpowers skills missing" | `/plugin install superpowers@claude-plugins-official`, then `/reload-plugins`. The dependency should install it automatically; `claude plugin details crew` shows if it did not |
+| "Superpowers skills missing" | `/plugin install crew-full@agent-crew` (or `superpowers@claude-plugins-official`), then `/reload-plugins` |
+| Two `superpowers` plugins | Uninstall the one you don't want: `/plugin uninstall superpowers@claude-plugins-official` or `superpowers@agent-crew` |
+| Switch to the tested Superpowers | Uninstall your copy, then `/plugin install crew-full@agent-crew` |
 | The board stays on "Connecting…" or says live updates aren't available | Open it on claude.ai while signed in. The live database only works inside the claude.ai viewer |
 | A card never moves | That agent got no `agentId` in its prompt, or `ArtifactData` isn't available to it. The controller then finalizes its row from the report |
 | Approval prompts for every board write | Allow the `ArtifactData` tool when first asked |
