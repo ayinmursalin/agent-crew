@@ -71,7 +71,7 @@ Only when the prompt gives you a board URL, an `agentId` and a `version`. Otherw
   2. `red`: the tests fail as expected.
   3. `implementing`.
   4. `green`: put the counts in `activity`.
-  5. `committed`: also set `status: "done"` (or `"blocked"` / `"failed"`), `commit: "<sha>"` and `tests: "<counts>"`.
+  5. `committed`: also set `status: "done"` (or `"blocked"` / `"failed"`), `finishedAt` (the same time as `updatedAt`), `commit: "<sha>"` and `tests: "<counts>"`.
 
 ## Report
 

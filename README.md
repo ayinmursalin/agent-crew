@@ -77,7 +77,7 @@ Run `/crew:init` in the project. It:
 
 Then fill in the remaining `[fill in]` parts of `CLAUDE.md`: the exact commands (agents run only these), known traps, protected and generated files, never-stage paths, shell and permission rules, and the never-break invariants (every review checks them). If the project has a reference to port from (another app, a spec), name it there.
 
-**Optional, the board:** run `/crew:board-setup`. It publishes the board once as a private Artifact, saves its URL to your **user-level** config (so every project uses it), and checks that it works. One board serves every project: each run carries a `project` field you can filter by.
+**Optional, the board:** run `/crew:board-setup`. It publishes the board once as a private Artifact, saves its URL to your **user-level** config (so every project uses it), and checks that it works. One board serves every project: each run carries a `project` field you can filter by. Cards can also be filtered by type (implementer, reviewer…) and sorted by status or by task, and show each agent's start, finish and duration.
 
 ## 4. Using it day to day
 
@@ -163,7 +163,7 @@ Agents run in parallel only when their files don't overlap. This kit explicitly 
 - **One board per person or team.** Run `/crew:board-setup` for yourself; a team that wants a shared board sets `teamBoard: true` in the project config. `board` is otherwise honoured only at user level, so a committed project file cannot point your runs at someone else's board.
 - **Never make the link public.** Share it from the page's Share menu with named people. Readers can watch; only you and editors can write.
 - **Rows are data.** Anyone with Editor access can write them, so agents and Claude never take instructions from board rows; the ledger and git are the truth. Activity text never contains secrets, tokens or personal data.
-- **Shape:** `runs/<runId>` holds `{project, milestone, part, title, branch, status: running|done, startedAt, tasks, staleMinutes}`; `agents/<agentId>` holds `{run, task, title, role, model, status: queued|running|done|blocked|failed, step, steps, stepLabel, activity, startedAt, updatedAt, commit?, tests?, verdict?, resolvedBy?, log}`. `resolvedBy` is set on a `❌ changes needed` review once a re-review approves the fix; it names that re-review's agentId, and the board shows the row as Resolved (counted as done) with the original verdict kept. Times are epoch milliseconds; every write to an existing row is pinned with `if_version`.
+- **Shape:** `runs/<runId>` holds `{project, milestone, part, title, branch, status: running|done, startedAt, finishedAt?, tasks, staleMinutes}`; `agents/<agentId>` holds `{run, task, title, role, model, status: queued|running|done|blocked|failed, step, steps, stepLabel, activity, startedAt, updatedAt, finishedAt?, commit?, tests?, verdict?, resolvedBy?, log}`. `startedAt` is set when an agent starts running and `finishedAt` when it ends; the board shows both and the time it took, and the same for the run. `resolvedBy` is set on a `❌ changes needed` review once a re-review approves the fix; it names that re-review's agentId, and the board shows the row as Resolved (counted as done) with the original verdict kept. Times are epoch milliseconds; every write to an existing row is pinned with `if_version`.
 - **Capacity:** the database holds up to 25,000 documents. Run `/crew:board-prune` now and then.
 
 ## 11. Troubleshooting

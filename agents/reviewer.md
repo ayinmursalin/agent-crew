@@ -67,7 +67,7 @@ Only when the prompt gives you a board URL, an `agentId` and a `version`. Otherw
   1. `reading the diff`.
   2. `reference cross-check`.
   3. `running tests`.
-  4. `verdict`: also set `status: "done"`, `verdict` (exactly the verdict string below) and `tests: "<counts>"`.
+  4. `verdict`: also set `status: "done"`, `finishedAt` (the same time as `updatedAt`), `verdict` (exactly the verdict string below) and `tests: "<counts>"`.
 
 ## Report
 

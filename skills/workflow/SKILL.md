@@ -216,7 +216,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 
 **Finalize on return** (skip it when the board is off, §12)**:** as soon as any agent's report arrives, before acting on it (weighing concerns, the guard, a merge, the next dispatch), finalize its board row from the report, whether or not the agent wrote its own row. Agents often skip their board writes, and a row left `running` holds the overall progress down after the work is done. `get` the row for its version, then one `update` pinned with `if_version` that sets:
 - `status`: `done` for `DONE`, `DONE_WITH_CONCERNS` or any reviewer verdict; `blocked` for `BLOCKED` or `NEEDS_CONTEXT`; `failed` when the agent errored or returned no usable report.
-- `step` = `steps`, a `stepLabel` (`committed`, `verdict`, `blocked` or `failed`), `activity`, `updatedAt`, and the `log` with one closing entry appended (at most 12, newest last).
+- `step` = `steps`, a `stepLabel` (`committed`, `verdict`, `blocked` or `failed`), `activity`, `updatedAt`, `finishedAt` (now, unless the agent already set it), and the `log` with one closing entry appended (at most 12, newest last).
 - From the report: `commit` and `tests` for an implementer; `verdict` and `tests` for a reviewer.
 
 **The loop, per task:**
@@ -327,7 +327,7 @@ T4 now runs alongside T2 instead of after it, so a slow T4 no longer extends the
 3. **Final review:** one `reviewer` pass (`<runId>-final-review`) over `git diff <base> HEAD`: cross-task consistency, reference spot-checks, stale docs.
 4. **Docs pass, in one commit:** the plan's "As built" note (review changes, deviations, false positives, notes for later parts), the overview status row, and the ledger's final counts and carry-forward.
 5. **Offer the finishing options by name:** "Merge locally", "Push and open a PR", "Keep the branch as-is", "Discard". Push or open a PR only on the owner's choice; write the PR description to a file, never inline in the shell.
-6. **Sweep the board, then close the run.** `query` on `agents` with `where: [["run", "==", <runId>]]`, paging, and finalize every row whose `status` is not `done`, `blocked` or `failed` (§7 "Finalize on return"), from the agent's report or the ledger. A row whose agent never ran gets `activity: "not run: <reason>"`, with `status: "done"` when its work was covered elsewhere (a batched review, a dropped task) and `failed` otherwise. Then update the board run to `status: "done"`.
+6. **Sweep the board, then close the run.** `query` on `agents` with `where: [["run", "==", <runId>]]`, paging, and finalize every row whose `status` is not `done`, `blocked` or `failed` (§7 "Finalize on return"), from the agent's report or the ledger. A row whose agent never ran gets `activity: "not run: <reason>"`, with `status: "done"` when its work was covered elsewhere (a batched review, a dropped task) and `failed` otherwise. Then update the board run to `status: "done"` with `finishedAt` (now).
 
 ## 11. Resume and status
 
@@ -346,15 +346,16 @@ The Agent Board is an Artifact page over a shared database, written with the `Ar
 - A retry or re-dispatch appends `-r2`, `-r3`. Never reuse an id: every attempt keeps its own row.
 
 **Schemas:**
-- `runs/<runId>`: `{project, milestone, part, title, branch, status: "running"|"done", startedAt, tasks, staleMinutes}`. `tasks` is the planned number of agent rows: 2 × planned tasks + 1 final review, raised when retries, follow-ups or batched reviews add rows. `staleMinutes` is the resolved config value.
-- `agents/<agentId>`: `{run, task, title, role, model, status, step, steps, stepLabel, activity, startedAt, updatedAt, commit?, tests?, verdict?, resolvedBy?, log: [{at, text}]}`.
+- `runs/<runId>`: `{project, milestone, part, title, branch, status: "running"|"done", startedAt, finishedAt?, tasks, staleMinutes}`. `finishedAt` is set when the run is marked done (§10). `tasks` is the planned number of agent rows: 2 × planned tasks + 1 final review, raised when retries, follow-ups or batched reviews add rows. `staleMinutes` is the resolved config value.
+- `agents/<agentId>`: `{run, task, title, role, model, status, step, steps, stepLabel, activity, startedAt, updatedAt, finishedAt?, commit?, tests?, verdict?, resolvedBy?, log: [{at, text}]}`.
+  - `startedAt`: when the row switches to `running`; `0` while `queued`. `finishedAt`: when it reaches `done`, `blocked` or `failed`. The board shows both and the time between them.
   - `role`: `implementer`, `reviewer`, `research` or `follow-up`.
   - `status`: `queued`, `running`, `done`, `blocked` or `failed`.
   - `verdict`: exactly `"✅ ready"`, `"approve with follow-ups"` or `"❌ changes needed"`.
   - `resolvedBy`: on a review whose verdict is `"❌ changes needed"`, the `agentId` of the passing re-review that closed its findings (§7). The board then shows the row as Resolved and counts it as done.
 
 **Who writes what:**
-- **Controller:** the run row and the `queued` rows at run start; each row's switch to `running` on dispatch (pass the board URL, `agentId` and returned version in the prompt); research rows at start and finish; the final state of every row as soon as its agent's report arrives, whether or not the agent wrote it (§7 "Finalize on return"); `resolvedBy` on reviews a passing re-review closed (§7); the sweep of the run's rows and the run's `done` (§10). Research done at plan time, before the run row exists, gets no rows.
+- **Controller:** the run row and the `queued` rows at run start; each row's switch to `running` on dispatch, with `startedAt` (pass the board URL, `agentId` and returned version in the prompt); research rows at start and finish; the final state of every row as soon as its agent's report arrives, whether or not the agent wrote it (§7 "Finalize on return"); `resolvedBy` on reviews a passing re-review closed (§7); the sweep of the run's rows and the run's `done` (§10). Research done at plan time, before the run row exists, gets no rows.
 - **Each agent:** one `update` of its own row per step, pinned with `if_version`, carrying `step`, `stepLabel`, `activity`, `updatedAt` and the whole `log` (newest last, at most 12 entries). On a version conflict, `get` the row and retry once. Times are epoch ms: `date +%s` with `000` appended.
 
 **Safety:**

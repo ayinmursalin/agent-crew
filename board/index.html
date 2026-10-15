@@ -43,6 +43,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body {
   background: var(--bg);
   color: var(--ink);
@@ -127,6 +128,8 @@ select:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); 
 .card[data-status="blocked"] .steps i.now, .card[data-status="failed"] .steps i.now { background: var(--bad); }
 .step { margin: 0; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; }
 .activity { margin: 0; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.times { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.times .dur, .runmeta .dur { color: var(--ink); font-weight: 600; }
 .foot { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font-size: 12px; color: var(--muted); }
 .sha { font-family: var(--mono); font-size: 12px; color: var(--ink); background: var(--track); border-radius: 5px; padding: 1px 6px; }
 .verdict { font-weight: 600; color: var(--warn); }
@@ -165,6 +168,17 @@ ol.log span { overflow-wrap: anywhere; }
         <label for="run">Run</label>
         <select id="run"></select>
       </div>
+      <div class="field">
+        <label for="type">Type</label>
+        <select id="type"></select>
+      </div>
+      <div class="field">
+        <label for="sort">Sort</label>
+        <select id="sort">
+          <option value="status">By status</option>
+          <option value="task">By task</option>
+        </select>
+      </div>
       <label class="check" for="runningOnly"><input type="checkbox" id="runningOnly">Running only</label>
     </div>
   </div>
@@ -172,7 +186,7 @@ ol.log span { overflow-wrap: anywhere; }
   <section class="summary" id="summary" hidden aria-live="polite">
     <div class="row">
       <h2 id="runTitle"></h2>
-      <div class="runmeta"><span class="mono" id="runBranch"></span><span id="runStarted"></span><span class="chip-idle" id="runIdle" hidden>Idle</span></div>
+      <div class="runmeta"><span class="mono" id="runBranch"></span><span id="runStarted"></span><span id="runFinished"></span><span class="dur" id="runDuration"></span><span class="chip-idle" id="runIdle" hidden>Idle</span></div>
     </div>
     <div class="stats" id="stats"></div>
     <div class="overall">
@@ -193,6 +207,8 @@ ol.log span { overflow-wrap: anywhere; }
 <script>
 (function () {
   const ROLE_LABEL = { implementer: "Implementer", reviewer: "Reviewer", research: "Research", "follow-up": "Follow-up" };
+  const ROLE_ORDER = ["implementer", "reviewer", "follow-up", "research"];
+  const ENDED = { done: true, blocked: true, failed: true };
   const STATUS_LABEL = { queued: "Queued", running: "Running", done: "Done", blocked: "Blocked", failed: "Failed" };
   const STATUS_ORDER = { running: 0, blocked: 1, failed: 1, changes: 1, queued: 2, done: 3, resolved: 3, abandoned: 3 };
   const DEFAULT_STALE_MIN = 15;
@@ -208,12 +224,16 @@ ol.log span { overflow-wrap: anywhere; }
   let project = null;
   let selected = null;
   let runningOnly = false;
+  let roleFilter = "all";
+  let sortBy = "status";
   const openLogs = new Set();
   try {
     project = localStorage.getItem("board.project");
     selected = localStorage.getItem("board.run");
     runningOnly = localStorage.getItem("board.runningOnly") === "1";
-  } catch (e) { project = null; selected = null; runningOnly = false; }
+    roleFilter = localStorage.getItem("board.type") || "all";
+    sortBy = localStorage.getItem("board.sort") === "task" ? "task" : "status";
+  } catch (e) { project = null; selected = null; runningOnly = false; roleFilter = "all"; sortBy = "status"; }
 
   const el = (id) => document.getElementById(id);
   const num = (v, d) => (typeof v === "number" && isFinite(v) ? v : d);
@@ -227,17 +247,6 @@ ol.log span { overflow-wrap: anywhere; }
     return n;
   }
 
-  function relative(ms) {
-    if (!ms) return "—";
-    const d = Date.now() - ms;
-    if (d < 45000) return "just now";
-    const m = Math.round(d / 60000);
-    if (m < 60) return m + " min ago";
-    const h = Math.floor(m / 60);
-    if (h < 24) return h + " h ago";
-    return new Date(ms).toLocaleDateString();
-  }
-
   function span(ms) {
     const m = Math.round(ms / 60000);
     if (ms < 45000) return "moments";
@@ -248,6 +257,57 @@ ol.log span { overflow-wrap: anywhere; }
 
   function clock(ms) {
     return ms ? new Date(ms).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
+  }
+
+  // A date and time, e.g. "Oct 15, 14:03"; just the time when it falls on the same day as ref.
+  function stamp(ms, ref) {
+    if (!ms) return "";
+    const d = new Date(ms);
+    if (ref && new Date(ref).toDateString() === d.toDateString()) return clock(ms);
+    return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+
+  // An elapsed time, e.g. "45 s", "3 min", "1 h 12 min", "2 d 3 h".
+  function duration(ms) {
+    ms = Math.max(0, ms);
+    if (ms < 59500) return Math.round(ms / 1000) + " s";
+    const m = Math.round(ms / 60000);
+    if (m < 60) return m + " min";
+    const h = Math.floor(m / 60);
+    if (h < 24) return h + " h" + (m % 60 ? " " + (m % 60) + " min" : "");
+    return Math.floor(h / 24) + " d" + (h % 24 ? " " + (h % 24) + " h" : "");
+  }
+
+  // When an agent ended: finishedAt, or for older rows without it, the last update of an ended row.
+  function endOf(a, status) {
+    if (!ENDED[a.status] && status !== "resolved" && status !== "abandoned") return 0;
+    return num(a.finishedAt, 0) || num(a.updatedAt, 0);
+  }
+
+  // Sort key for "By task": research, then each task's rows in the order they happen
+  // (implementer, its re-dispatches, reviewer, fix, re-review, ...), then follow-ups and the final review.
+  function taskKey(a) {
+    const id = shortId(str(a.id), a.run);
+    const retry = (id.match(/-r(\d+)$/) || [])[1];
+    const n = retry ? Number(retry) : 1;
+    const m = id.match(/^((?:t\d+-)+)(implementer|reviewer|fix)(?:-r\d+)?$/);
+    if (m) {
+      const tasks = m[1].match(/\d+/g).map(Number);
+      const t = Math.max.apply(null, tasks);
+      const seq = m[2] === "implementer" ? n / 100 : m[2] === "reviewer" ? 2 * n + (tasks.length > 1 ? 0.5 : 0) : 2 * n + 1;
+      return [1, t, seq];
+    }
+    if (/^research/.test(id)) return [0, Number((id.match(/\d+/) || [0])[0]), 0];
+    if (/^followups/.test(id)) return [2, 0, n];
+    if (/^final-review/.test(id)) return [3, 0, n];
+    const t = str(a.task).match(/\d+/);
+    return t ? [1, Number(t[0]), 9] : [4, 0, 0];
+  }
+
+  function byTask(x, y) {
+    const kx = taskKey(x), ky = taskKey(y);
+    for (let i = 0; i < kx.length; i++) if (kx[i] !== ky[i]) return kx[i] - ky[i];
+    return str(x.id) < str(y.id) ? -1 : str(x.id) > str(y.id) ? 1 : 0;
   }
 
   function progressOf(a) {
@@ -342,6 +402,20 @@ ol.log span { overflow-wrap: anywhere; }
     c.appendChild(make("p", "step", "Step " + step + " of " + steps + (label ? " · " + label : "")));
     if (str(a.activity)) c.appendChild(make("p", "activity", a.activity));
 
+    const started = status === "queued" ? 0 : num(a.startedAt, 0);
+    if (started) {
+      const ended = endOf(a, status);
+      const times = make("div", "times");
+      times.appendChild(make("span", null, "Started " + stamp(started)));
+      if (ended) {
+        times.appendChild(make("span", null, (status === "abandoned" ? "Last seen " : "Finished ") + stamp(ended, started)));
+        times.appendChild(make("span", "dur", "Took " + duration(ended - started)));
+      } else {
+        times.appendChild(make("span", "dur", "Running " + duration(ctx.now - started)));
+      }
+      c.appendChild(times);
+    }
+
     const foot = make("div", "foot");
     foot.appendChild(make("span", stale ? "stale" : null, stale ? "No update for " + span(ago) : "Updated " + (updated ? span(ago) + " ago" : "—")));
     if (str(a.tests)) foot.appendChild(make("span", null, a.tests));
@@ -427,11 +501,18 @@ ol.log span { overflow-wrap: anywhere; }
 
     const mine = agents
       .filter((a) => a.run === selected)
-      .sort((x, y) => (STATUS_ORDER[displayStatus(x, run)] ?? 2) - (STATUS_ORDER[displayStatus(y, run)] ?? 2) || num(x.startedAt, 0) - num(y.startedAt, 0));
+      .sort(sortBy === "task" ? byTask
+        : (x, y) => (STATUS_ORDER[displayStatus(x, run)] ?? 2) - (STATUS_ORDER[displayStatus(y, run)] ?? 2) || num(x.startedAt, 0) - num(y.startedAt, 0));
+
+    // The type filter offers only the roles this run has.
+    const roles = ROLE_ORDER.filter((r) => mine.some((a) => a.role === r));
+    for (const a of mine) if (str(a.role) && !roles.includes(a.role)) roles.push(a.role);
+    const activeRole = roles.includes(roleFilter) ? roleFilter : "all";
+    fillSelect(el("type"), [["all", "All types"]].concat(roles.map((r) => [r, ROLE_LABEL[r] || r])), activeRole);
+    el("sort").value = sortBy;
 
     el("runTitle").textContent = str(run.title) || run.id;
     el("runBranch").textContent = str(run.branch);
-    el("runStarted").textContent = run.startedAt ? "Started " + relative(num(run.startedAt, 0)) : "";
 
     // The viewer's clock, clamped so an agent clock running ahead never reads as "in the future".
     let newest = 0;
@@ -441,6 +522,16 @@ ol.log span { overflow-wrap: anywhere; }
     const staleMin = num(run.staleMinutes, DEFAULT_STALE_MIN);
     const ctx = { run: run, now: now, staleMs: (staleMin > 0 ? staleMin : DEFAULT_STALE_MIN) * 60000 };
     el("runIdle").hidden = !(run.status !== "done" && lastSeen > 0 && now - lastSeen > IDLE_MS);
+
+    // Run times: finishedAt, or for older runs without it, the last agent to end.
+    const runStart = num(run.startedAt, 0);
+    let runEnd = num(run.finishedAt, 0);
+    if (!runEnd && run.status === "done") for (const a of mine) runEnd = Math.max(runEnd, endOf(a, displayStatus(a, run)));
+    el("runStarted").textContent = runStart ? "Started " + stamp(runStart) : "";
+    el("runFinished").textContent = runEnd ? "Finished " + stamp(runEnd, runStart) : "";
+    el("runDuration").textContent = !runStart ? ""
+      : runEnd ? "Took " + duration(runEnd - runStart)
+      : run.status !== "done" ? "Running " + duration(now - runStart) : "";
 
     const tally = { running: 0, queued: 0, blocked: 0, done: 0 };
     for (const a of mine) {
@@ -476,6 +567,7 @@ ol.log span { overflow-wrap: anywhere; }
     }
     let shown = 0;
     for (const a of mine) {
+      if (activeRole !== "all" && a.role !== activeRole) continue;
       if (runningOnly) {
         const d = displayStatus(a, run);
         if (d !== "running" && d !== "blocked" && d !== "failed" && d !== "changes") continue;
@@ -483,7 +575,7 @@ ol.log span { overflow-wrap: anywhere; }
       grid.appendChild(card(a, ctx));
       shown++;
     }
-    if (!shown) grid.appendChild(make("p", "note", "No running or blocked agents in this run."));
+    if (!shown) grid.appendChild(make("p", "note", activeRole !== "all" ? "No agents of this type match." : "No running or blocked agents in this run."));
   }
 
   function remember() {
@@ -494,6 +586,16 @@ ol.log span { overflow-wrap: anywhere; }
   }
   el("project").addEventListener("change", (e) => { project = e.target.value; selected = null; resolveSelection(); render(); remember(); });
   el("run").addEventListener("change", (e) => { selected = e.target.value; resolveSelection(); render(); remember(); });
+  el("type").addEventListener("change", (e) => {
+    roleFilter = e.target.value;
+    try { localStorage.setItem("board.type", roleFilter); } catch (err) { /* per-viewer convenience only */ }
+    render();
+  });
+  el("sort").addEventListener("change", (e) => {
+    sortBy = e.target.value === "task" ? "task" : "status";
+    try { localStorage.setItem("board.sort", sortBy); } catch (err) { /* per-viewer convenience only */ }
+    render();
+  });
   el("runningOnly").checked = runningOnly;
   el("runningOnly").addEventListener("change", (e) => {
     runningOnly = e.target.checked;
