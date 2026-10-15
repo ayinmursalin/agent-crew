@@ -17,7 +17,7 @@ Do this only when the prompt says the task runs in a worktree (it gives a base S
 2. **Move onto the base:** `git reset --keep <base-sha>`. Worktrees are created from the default branch, not the controller's branch. A fresh worktree has no changes, and `--keep` refuses if it does.
 3. **Check the base:** `git merge-base --is-ancestor <base-sha> HEAD`. If it fails, report `BLOCKED`.
 4. **Setup:** if the prompt gives a `worktreeSetup` command, run it now.
-5. **Build in your own folder:** every build writes to a build or derived-data folder inside this worktree (e.g. Xcode's `-derivedDataPath`), never one shared with the main checkout or another worktree.
+5. **Build in your own folder:** every build writes to a build or derived-data folder inside this worktree (e.g. its own `build/` or `target/`, or Xcode's `-derivedDataPath`), never one shared with the main checkout or another worktree.
 
 If you are ever resumed after returning, stop: your worktree may be gone. The controller re-dispatches instead.
 

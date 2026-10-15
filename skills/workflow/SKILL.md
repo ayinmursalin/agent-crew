@@ -152,7 +152,7 @@ Spec: <spec path>
 - 4–8 tasks means 6–28 pairs. List them all; "the rest are independent" is fine only after each pair was checked.
 
 **Cut edges before finalizing.** For each edge, try:
-- **Move the shared edit earlier:** put a shared-file edit or a seam into the smallest earlier task that can hold it, ideally one both tasks already wait on. If adding a file edits a shared project file (e.g. an Xcode `project.pbxproj` without synchronized folders), that earlier task also adds a stub file for each later task, in the later task's own folder.
+- **Move the shared edit earlier:** put a shared-file edit or a seam into the smallest earlier task that can hold it, ideally one both tasks already wait on. If adding a file edits a shared project file (a project file that lists every source file, e.g. Xcode's `project.pbxproj` or a `.csproj` with explicit includes), that earlier task also adds a stub file for each later task, in the later task's own folder.
 - **Use a task-local fake** instead of extending a shared test double.
 - **Give exact seams:** signature, types and file path, verbatim, so a dependent can build against the seam as written without waiting for its review. A verbatim seam is what allows an early start (§8).
 
@@ -267,7 +267,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
    2. `git reset --keep <base-sha>` (safe: a fresh worktree has no changes, and `--keep` refuses if there are any).
    3. `git merge-base --is-ancestor <base-sha> HEAD`; report BLOCKED if it fails.
    4. Run `worktreeSetup`, if the prompt gives one.
-3. **A build folder per worktree.** Each worktree builds into its own build or derived-data folder inside the worktree (e.g. Xcode's `-derivedDataPath`), never one shared with the main checkout or another worktree. This is why build-only pairs are never edges.
+3. **A build folder per worktree.** Each worktree builds into its own build or derived-data folder inside the worktree (e.g. its own `build/` or `target/`, or Xcode's `-derivedDataPath`), never one shared with the main checkout or another worktree. This is why build-only pairs are never edges.
 4. **Never resume a returned worktree agent with SendMessage.** A worktree whose agent finished without changes is cleaned up, so a resumed agent wakes in the main checkout. Re-dispatch it fresh with a new `-r2` row.
 5. **Dispatch** with `isolation: "worktree"`, every ready task in one message. Pass the base SHA, `worktreeSetup`, the build-folder rule, any parallel-safe test command CLAUDE.md lists, and the board details.
    - **Finalize each returning agent's row first** (§7 "Finalize on return"), before merging it or starting the next one in the queue. Parallel agents miss their own board writes as often as sequential ones.
@@ -277,28 +277,28 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 9. **Cleanup:** leave harness-made worktrees to the harness (the finishing skill says never remove them); remove only worktrees you created yourself. `.gitignore` must list `.claude/worktrees/` (init adds it).
 10. **Shared devices** (simulator, emulator, fixed ports, one dev database) are used only by the controller, after merges.
 
-**Worked example: one part of an iOS app, 6 tasks** (illustrative names, not real code). T1 Core (models and `KanjiRepository`, in `Core/`), T2 app wiring (`App/AppContainer.swift`, `App/AppRoute.swift`), T3 lesson screen, T4 audio, T5 review screen, T6 settings screen. The project uses Xcode synchronized folders, so adding a file edits no project file. The old rule made T2 the prep commit and ran T3–T6 after it. T4 never used anything from T2, but nobody compared T4 with T2, so it waited for nothing.
+**Worked example: one part of an app, 6 tasks** (illustrative names; any stack). T1 core (domain types and `ItemStore`, in `core/`), T2 app wiring (`app/container`, `app/routes`), T3 list screen, T4 export service, T5 detail screen, T6 settings screen. Adding a file edits no shared project file here (if it did, see the stub rule in §4). The old rule made T2 the prep commit and ran T3–T6 after it. T4 never used anything from T2, but nobody compared T4 with T2, so it waited for nothing.
 
 The matrix, after cuts:
 
 | Pair | Relation | Cause |
 |---|---|---|
-| T1–T2 | needs-code | `KanjiRepository` (T2 registers it in `AppContainer`) |
-| T1–T3 | needs-code | `KanjiRepository.lessons(level:)` |
-| T1–T4 | needs-code | `AudioClip` |
-| T1–T5 | needs-code | `ReviewScheduler.nextDue(after:)` |
-| T1–T6 | needs-code | `UserSettings` |
-| T2–T3 | needs-code | `AppRoute.lesson(id:)`, `AppContainer.makeLessonViewModel(id:)` |
-| T2–T4 | build-only | both build the same app target; no code link, so no edge |
-| T2–T5 | needs-code | `AppRoute.review`, `AppContainer.makeReviewViewModel()` |
-| T2–T6 | needs-code | `AppRoute.settings` |
+| T1–T2 | needs-code | `ItemStore` (T2 registers it in `app/container`) |
+| T1–T3 | needs-code | `ItemStore.list(filter)` |
+| T1–T4 | needs-code | `Item`, `ItemStore.all()` |
+| T1–T5 | needs-code | `ItemStore.get(id)` |
+| T1–T6 | needs-code | `Settings` |
+| T2–T3 | needs-code | `Route.list`, `Container.listViewModel()` |
+| T2–T4 | build-only | both build the same app; no code link, so no edge |
+| T2–T5 | needs-code | `Route.detail(id)`, `Container.detailViewModel(id)` |
+| T2–T6 | needs-code | `Route.settings` |
 | T3–T5 | independent | cut, see below |
 | T3–T6, T5–T6 | independent | cut, see below |
 | T3–T4, T4–T5, T4–T6 | independent | no shared file or symbol |
 
 Edges cut:
-- T3–T5, T3–T6, T5–T6 file-overlap on `Resources/Localizable.xcstrings`: every string key moved into T2, which already edits shared files and which all three wait on.
-- T3–T5 test-infra-overlap on `Tests/Support/FakeKanjiRepository.swift`: T5 uses a task-local `FakeReviewSource` in its own test folder; only T3 extends the shared fake.
+- T3–T5, T3–T6, T5–T6 file-overlap on `resources/strings`: every string key moved into T2, which already edits shared files and which all three wait on.
+- T3–T5 test-infra-overlap on `tests/support/FakeItemStore`: T5 uses a task-local fake in its own test folder; only T3 extends the shared one.
 
 The DAG: T1 → T2, T3, T4, T5, T6; T2 → T3, T5, T6. Levels: 0 {T1}, 1 {T2, T4}, 2 {T3, T5, T6}. Longest chain: T1 → T2 → T3.
 
@@ -312,7 +312,7 @@ The schedule (`maxParallel` 4):
 | T2 lands | T3, T5, T6 | three worktrees; T4 merged, then reviewed | part-branch HEAD (T1, T2, T4) |
 | T3, T5, T6 land | none | final review (§10) | |
 
-T4 now runs alongside T2 instead of after it, so a slow T4 no longer extends the run. Since `AppRoute` and the `AppContainer` factories are given verbatim in the plan, T3, T5 and T6 could also take an early start once T2 is committed.
+T4 now runs alongside T2 instead of after it, so a slow T4 no longer extends the run. Since `Route` and the `Container` factories are given verbatim in the plan, T3, T5 and T6 could also take an early start once T2 is committed.
 
 ## 9. Don't wait for merges
 
