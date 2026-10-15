@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.5.0
+
+- **Parallel tasks are scheduled from a dependency DAG, not "prep, then all at once".** The old shape (one sequential prep task, then every other task in parallel) only compared each task with the prep, so it hid parallelism. A task that depended only on the first task still waited for the prep task, because nobody compared the two directly.
+  - `crew:workflow` §4: every plan has a **dependency matrix** that classifies every pair of tasks as independent, needs-code, file-overlap, test-infra-overlap or build-only (never an edge). Every edge names a file or symbol, or it is removed. The plan tries to cut edges (move a shared edit or seam into the smallest earlier task, prefer a task-local fake, give exact seams) and records each cut. Four new self-review checks: every pair classified, every edge has a cause, no needless waits, the longest chain as short as the plan allows.
+  - §8: a task is **ready** once every task it depends on has landed (committed on the part branch, merged if it ran in a worktree, and reviewed with no open Critical or Important finding on the seam it uses). The controller dispatches every ready task at once as a rolling queue up to `maxParallel`, and re-checks readiness each time a task lands. One task may run in the main checkout while others run in worktrees.
+  - Each worktree task's base is the part-branch commit that contains all its dependencies, not a fixed prep SHA. The worktree first steps are unchanged otherwise.
+  - Optional **early start:** a dependent may start before its dependency's review when the seam it uses is verbatim in the plan; if a fix changes that seam, the dependent is rebased onto the new base before its merge and review.
+  - Safety rules kept: disjoint files per running task, a build or derived-data folder per worktree (now stated explicitly), never resume a returned worktree agent, `--no-ff` merges, review after the merge, and Critical or Important fixes before any dependent using the affected seam.
+  - §5 computes the schedule at run start and shows the owner the DAG. §6: the ledger's `Dependencies:` line becomes `Edges:` (Ti → Tj: cause) plus a `Start order:` line; each task row notes its base and which tasks it unblocked. Parallel groups are called ready sets or DAG levels, never waves.
+  - A worked example (an illustrative 6-task part, any stack: matrix, cuts, DAG and schedule) is in §8.
+  - `crew:implementer`: worktree prompts give a base SHA instead of a prep SHA, and builds go to a folder inside the worktree. `crew:reviewer`: checks seams other tasks use against the plan, and names the seam each Critical or Important issue touches.
+- **Board: times, type filter and task sort.**
+  - Each card shows when the agent started and finished and how long it took ("Took 13 min"), or "Running 20 min" while it works. The run summary does the same for the whole run.
+  - New optional fields: `finishedAt` on agent rows (set by the agent's last write and by the controller's finalize) and on the run row (set when the run is marked done). `startedAt` on an agent row is now set when it switches to `running`, not when the queued row is created. Older rows without `finishedAt` fall back to their last update.
+  - **Type** filter: All types, or only Implementer, Reviewer, Follow-up or Research (only the types the run has).
+  - **Sort:** "By status" (as before) or "By task": research, then each task's rows in the order they happen (T1 implementer, T1 reviewer, T1 fix, T1 re-review, T2 implementer…), then follow-ups and the final review.
+  - Fixed: the "No runs yet" panel and the Project and Run pickers showed even when they should be hidden.
+- **Upgrade:** `claude plugin update crew@agent-crew`, and republish `board/index.html` to your existing board URL (Artifact publish with that `url`, so the link stays the same). A run already in progress can finish under its old plan; write the matrix in the next part's plan.
+
 ## 1.4.0
 
 - **Resolved reviews no longer stay Blocked.** A review that said `❌ changes needed` used to count as Blocked forever, even after the fix was re-reviewed and approved, so a finished run could show "3 Blocked".

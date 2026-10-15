@@ -32,6 +32,7 @@ Do them in one pass, in this order.
    - Does the diff do exactly what the plan's tasks say? Look for missing pieces and for extra, unrequested ones.
    - Do signatures, test names and assertions, and values match the plan exactly? Where the plan gives code, does the commit match it? Is any difference justified?
    - Where the plan gives a UI spec, does the UI follow it?
+   - Does every seam the plan says another task uses match the plan verbatim? Dependent tasks build against it.
 2. **Reference**
    - Read the reference the task names: a spec, a reference implementation, the tests being ported.
    - Do rules, numbers, keys, copy, design tokens, interactions, analytics and edge cases match? Any deviation should be listed in the plan.
@@ -66,7 +67,7 @@ Only when the prompt gives you a board URL, an `agentId` and a `version`. Otherw
   1. `reading the diff`.
   2. `reference cross-check`.
   3. `running tests`.
-  4. `verdict`: also set `status: "done"`, `verdict` (exactly the verdict string below) and `tests: "<counts>"`.
+  4. `verdict`: also set `status: "done"`, `finishedAt` (the same time as `updatedAt`), `verdict` (exactly the verdict string below) and `tests: "<counts>"`.
 
 ## Report
 
@@ -79,7 +80,7 @@ Then:
   - **Important:** a real risk or a deviation.
   - **Minor:** cleanups.
 
-  Each issue needs a `file:line`, the reference location where relevant, and a concrete fix.
+  Each issue needs a `file:line`, the reference location where relevant, and a concrete fix. For a Critical or Important issue, also name the seam it touches (a type, member or file another task uses), or say "no seam": the controller holds that seam's dependents until it is fixed.
 - **The ported-test mapping**, when the tasks port tests.
 - **Test counts.**
 - **Notes for later parts:** only what they will actually need.

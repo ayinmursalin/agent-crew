@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Implements exactly one task of a part plan test-first, cross-checked against the reference the plan names, and commits it. Works in the main checkout or in a parallel git worktree. Give it the task's full text, plan-wide notes and, for parallel runs, the prep commit SHA. Reports progress to the Agent Board when given a board URL, an agentId and a version.
+description: Implements exactly one task of a part plan test-first, cross-checked against the reference the plan names, and commits it. Works in the main checkout or in a parallel git worktree. Give it the task's full text, plan-wide notes and, for worktree runs, the task's base SHA. Reports progress to the Agent Board when given a board URL, an agentId and a version.
 model: sonnet
 tools: Read, Edit, Write, Glob, Grep, Bash, ToolSearch, ArtifactData
 ---
@@ -11,12 +11,13 @@ You implement **one task** of a part plan.
 
 ## Worktree first steps
 
-Do this only when the prompt says the task is a parallel one (it gives a prep commit SHA). Do it before reading or changing anything else.
+Do this only when the prompt says the task runs in a worktree (it gives a base SHA). Do it before reading or changing anything else.
 
 1. **Prove you are in a worktree.** `git rev-parse --path-format=absolute --git-dir` must differ from `git rev-parse --path-format=absolute --git-common-dir`. If they are the same you are in the main checkout: change nothing and report `BLOCKED`.
-2. **Move onto the prep commit:** `git reset --keep <prep-sha>`. Worktrees are created from the default branch, not the controller's branch. A fresh worktree has no changes, and `--keep` refuses if it does.
-3. **Check the base:** `git merge-base --is-ancestor <prep-sha> HEAD`. If it fails, report `BLOCKED`.
+2. **Move onto the base:** `git reset --keep <base-sha>`. Worktrees are created from the default branch, not the controller's branch. A fresh worktree has no changes, and `--keep` refuses if it does.
+3. **Check the base:** `git merge-base --is-ancestor <base-sha> HEAD`. If it fails, report `BLOCKED`.
 4. **Setup:** if the prompt gives a `worktreeSetup` command, run it now.
+5. **Build in your own folder:** every build writes to a build or derived-data folder inside this worktree (e.g. its own `build/` or `target/`, or Xcode's `-derivedDataPath`), never one shared with the main checkout or another worktree.
 
 If you are ever resumed after returning, stop: your worktree may be gone. The controller re-dispatches instead.
 
@@ -40,9 +41,9 @@ If you are ever resumed after returning, stop: your worktree may be gone. The co
 - **Concerns rule:** any fix beyond a pure compile error to code the plan gave means the status is `DONE_WITH_CONCERNS`. Say what you changed and why.
 - **Stay in scope.**
   - Touch only the files the task names. A file outside them means the task needs a new plan step, so stop and report it.
-  - In a parallel run you own your folders. Never edit shared files the plan reserved for its prep commit.
+  - In a worktree you own your folders. Never edit a file, shared test double or helper the plan gives to another task; if you need one, stop and report it.
 - **Full suite before committing.** Run the project's fast full unit suite and the checks CLAUDE.md requires for the files you touched. Fix failures you caused; report ones you did not.
-  - **In a parallel run,** run only the parallel-safe test commands the prompt gives. If none is given, run only the task's own tests, skip the full suite, and say so in the report. The controller runs the full suite after merging.
+  - **In a worktree,** run only the parallel-safe test commands the prompt gives. If none is given, run only the task's own tests, skip the full suite, and say so in the report. The controller runs the full suite after merging.
 - **Commit** only the task's paths, using the project's commit-message format.
   - **Never stage** the ledger or plans. Never stage other docs unless the task names them.
   - **Attribution:** end the message with a Co-Authored-By line naming the model you actually are.
@@ -70,7 +71,7 @@ Only when the prompt gives you a board URL, an `agentId` and a `version`. Otherw
   2. `red`: the tests fail as expected.
   3. `implementing`.
   4. `green`: put the counts in `activity`.
-  5. `committed`: also set `status: "done"` (or `"blocked"` / `"failed"`), `commit: "<sha>"` and `tests: "<counts>"`.
+  5. `committed`: also set `status: "done"` (or `"blocked"` / `"failed"`), `finishedAt` (the same time as `updatedAt`), `commit: "<sha>"` and `tests: "<counts>"`.
 
 ## Report
 

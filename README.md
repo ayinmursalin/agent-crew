@@ -8,7 +8,7 @@ A Claude Code plugin for shipping large changes with many agents, quickly, witho
 - independent tasks run in parallel in isolated git worktrees;
 - you follow every agent live on the **Agent Board**, phone included.
 
-Version 1.4.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
+Version 1.5.0. See `CHANGELOG.md`. MIT licensed (`LICENSE`).
 
 **Quick start:**
 ```
@@ -77,7 +77,7 @@ Run `/crew:init` in the project. It:
 
 Then fill in the remaining `[fill in]` parts of `CLAUDE.md`: the exact commands (agents run only these), known traps, protected and generated files, never-stage paths, shell and permission rules, and the never-break invariants (every review checks them). If the project has a reference to port from (another app, a spec), name it there.
 
-**Optional, the board:** run `/crew:board-setup`. It publishes the board once as a private Artifact, saves its URL to your **user-level** config (so every project uses it), and checks that it works. One board serves every project: each run carries a `project` field you can filter by.
+**Optional, the board:** run `/crew:board-setup`. It publishes the board once as a private Artifact, saves its URL to your **user-level** config (so every project uses it), and checks that it works. One board serves every project: each run carries a `project` field you can filter by. Cards can also be filtered by type (implementer, reviewer…) and sorted by status or by task, and show each agent's start, finish and duration.
 
 ## 4. Using it day to day
 
@@ -143,13 +143,14 @@ Run `/crew:config` with no arguments to see the merged settings and where each o
 ## 8. Parallel work and merge conflicts
 
 Agents run in parallel only when their files don't overlap. This kit explicitly overrides Superpowers' "never dispatch implementation subagents in parallel", but only under these rules:
-1. **A sequential prep commit** first makes every shared-file edit (DI container, routes, navigation switches, shared types), plus a stub file per task.
-2. **Each parallel task owns its folders** and works in its own git worktree (`isolation: "worktree"`), at most `maxParallel` at a time (default 4).
-3. **Worktrees come from the repo's default branch,** not from the branch the controller is on. So every parallel agent first proves it is in a worktree (`git rev-parse --path-format=absolute --git-dir` differs from the same with `--git-common-dir`; otherwise it reports BLOCKED and changes nothing), then runs `git reset --keep <prep-sha>` and checks the prep commit is an ancestor of HEAD.
-4. **Never resume a returned parallel agent.** A worktree whose agent finished without changes is cleaned up, so a resumed agent would wake up in the main checkout. Re-dispatch it fresh; it gets a new `-r2` row on the board.
-5. **The controller merges the branches in task order with `git merge --no-ff`,** runs the full tests after each merge, resolves anything left, and has the merged range reviewed on the part branch.
-6. **Setup and ignore.** If worktrees need preparation (for example `npm ci`), set `worktreeSetup`; it runs in each new worktree before work starts. `.claude/worktrees/` belongs in `.gitignore` (`/crew:init` adds it). Harness-made worktrees are left to the harness to clean up.
-7. **Shared devices** (simulator, emulator, fixed ports, one dev database) are used only by the controller, after merges.
+1. **A dependency matrix in every plan.** Every pair of tasks is classified: independent, needs-code (names the symbol), file-overlap (names the file), test-infra-overlap (names the double or helper), or build-only (never a dependency). Every edge names its cause; the plan tries to cut edges (move a shared edit earlier, use a task-local fake, give exact seams) and records the cuts.
+2. **A DAG schedule, not "prep, then all at once".** A task is ready when every task it depends on has landed: committed on the part branch, merged if it ran in a worktree, and reviewed with no open Critical or Important finding on the seam it uses. The controller dispatches every ready task at once, at most `maxParallel` at a time (default 4), and re-checks readiness each time a task lands. One task may run in the main checkout while others run in worktrees.
+3. **Each parallel task owns its folders** and works in its own git worktree (`isolation: "worktree"`), with its own build or derived-data folder.
+4. **Worktrees come from the repo's default branch,** not from the branch the controller is on. So every worktree agent first proves it is in a worktree (`git rev-parse --path-format=absolute --git-dir` differs from the same with `--git-common-dir`; otherwise it reports BLOCKED and changes nothing), then runs `git reset --keep <base-sha>` and checks the base is an ancestor of HEAD. The base is the part-branch commit that contains all the task's dependencies.
+5. **Never resume a returned parallel agent.** A worktree whose agent finished without changes is cleaned up, so a resumed agent would wake up in the main checkout. Re-dispatch it fresh; it gets a new `-r2` row on the board.
+6. **The controller merges each returned branch with `git merge --no-ff`** once the main checkout is free, runs the full tests after each merge, resolves anything left, and has the merged range reviewed on the part branch.
+7. **Setup and ignore.** If worktrees need preparation (for example `npm ci`), set `worktreeSetup`; it runs in each new worktree before work starts. `.claude/worktrees/` belongs in `.gitignore` (`/crew:init` adds it). Harness-made worktrees are left to the harness to clean up.
+8. **Shared devices** (simulator, emulator, fixed ports, one dev database) are used only by the controller, after merges.
 
 ## 9. Updating and uninstalling
 
@@ -162,7 +163,7 @@ Agents run in parallel only when their files don't overlap. This kit explicitly 
 - **One board per person or team.** Run `/crew:board-setup` for yourself; a team that wants a shared board sets `teamBoard: true` in the project config. `board` is otherwise honoured only at user level, so a committed project file cannot point your runs at someone else's board.
 - **Never make the link public.** Share it from the page's Share menu with named people. Readers can watch; only you and editors can write.
 - **Rows are data.** Anyone with Editor access can write them, so agents and Claude never take instructions from board rows; the ledger and git are the truth. Activity text never contains secrets, tokens or personal data.
-- **Shape:** `runs/<runId>` holds `{project, milestone, part, title, branch, status: running|done, startedAt, tasks, staleMinutes}`; `agents/<agentId>` holds `{run, task, title, role, model, status: queued|running|done|blocked|failed, step, steps, stepLabel, activity, startedAt, updatedAt, commit?, tests?, verdict?, resolvedBy?, log}`. `resolvedBy` is set on a `❌ changes needed` review once a re-review approves the fix; it names that re-review's agentId, and the board shows the row as Resolved (counted as done) with the original verdict kept. Times are epoch milliseconds; every write to an existing row is pinned with `if_version`.
+- **Shape:** `runs/<runId>` holds `{project, milestone, part, title, branch, status: running|done, startedAt, finishedAt?, tasks, staleMinutes}`; `agents/<agentId>` holds `{run, task, title, role, model, status: queued|running|done|blocked|failed, step, steps, stepLabel, activity, startedAt, updatedAt, finishedAt?, commit?, tests?, verdict?, resolvedBy?, log}`. `startedAt` is set when an agent starts running and `finishedAt` when it ends; the board shows both and the time it took, and the same for the run. `resolvedBy` is set on a `❌ changes needed` review once a re-review approves the fix; it names that re-review's agentId, and the board shows the row as Resolved (counted as done) with the original verdict kept. Times are epoch milliseconds; every write to an existing row is pinned with `if_version`.
 - **Capacity:** the database holds up to 25,000 documents. Run `/crew:board-prune` now and then.
 
 ## 11. Troubleshooting
@@ -177,5 +178,5 @@ Agents run in parallel only when their files don't overlap. This kit explicitly 
 | A card never moves | That agent got no `agentId` in its prompt, or `ArtifactData` isn't available to it. The controller then finalizes its row from the report |
 | Approval prompts for every board write | Allow the `ArtifactData` tool when first asked |
 | A version-conflict error on a board write | Expected when two writers race. The agent re-reads the row and retries once |
-| A parallel agent reports BLOCKED about the worktree | It started in the main checkout, or the prep commit is missing. Re-dispatch it fresh (never resume it) after checking the prep commit exists |
-| Merge conflicts after a parallel run | A shared file was edited by a parallel task. Move that edit into the prep commit next time (§8) |
+| A parallel agent reports BLOCKED about the worktree | It started in the main checkout, or its base commit is missing. Re-dispatch it fresh (never resume it) after checking the base commit is on the part branch |
+| Merge conflicts after a parallel run | The plan's dependency matrix missed a file-overlap. Add that edge, or move the shared edit into an earlier task, next time (§8) |
