@@ -9,7 +9,7 @@
   - Optional **early start:** a dependent may start before its dependency's review when the seam it uses is verbatim in the plan; if a fix changes that seam, the dependent is rebased onto the new base before its merge and review.
   - Safety rules kept: disjoint files per running task, a build or derived-data folder per worktree (now stated explicitly), never resume a returned worktree agent, `--no-ff` merges, review after the merge, and Critical or Important fixes before any dependent using the affected seam.
   - §5 computes the schedule at run start and shows the owner the DAG. §6: the ledger's `Dependencies:` line becomes `Edges:` (Ti → Tj: cause) plus a `Start order:` line; each task row notes its base and which tasks it unblocked. Parallel groups are called ready sets or DAG levels, never waves.
-  - A worked example (the M3·P0 case: matrix, cuts, DAG and schedule) is in §8.
+  - A worked example (an illustrative 6-task iOS part shaped like that case: matrix, cuts, DAG and schedule) is in §8.
   - `crew:implementer`: worktree prompts give a base SHA instead of a prep SHA, and builds go to a folder inside the worktree. `crew:reviewer`: checks seams other tasks use against the plan, and names the seam each Critical or Important issue touches.
 - **Upgrade:** `claude plugin update crew@agent-crew`. A run already in progress can finish under its old plan; write the matrix in the next part's plan.
 

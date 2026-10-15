@@ -277,7 +277,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 9. **Cleanup:** leave harness-made worktrees to the harness (the finishing skill says never remove them); remove only worktrees you created yourself. `.gitignore` must list `.claude/worktrees/` (init adds it).
 10. **Shared devices** (simulator, emulator, fixed ports, one dev database) are used only by the controller, after merges.
 
-**Worked example: belajar-kanji-ios M3·P0, 6 tasks.** T1 Core (models and `KanjiRepository`, in `Core/`), T2 app wiring (`App/AppContainer.swift`, `App/AppRoute.swift`), T3 lesson screen, T4 audio, T5 review screen, T6 settings screen. The project uses Xcode synchronized folders, so adding a file edits no project file. The old rule made T2 the prep commit and ran T3–T6 after it. T4 never used anything from T2, but nobody compared T4 with T2, so it waited for nothing.
+**Worked example: one part of an iOS app, 6 tasks** (illustrative names, not real code). T1 Core (models and `KanjiRepository`, in `Core/`), T2 app wiring (`App/AppContainer.swift`, `App/AppRoute.swift`), T3 lesson screen, T4 audio, T5 review screen, T6 settings screen. The project uses Xcode synchronized folders, so adding a file edits no project file. The old rule made T2 the prep commit and ran T3–T6 after it. T4 never used anything from T2, but nobody compared T4 with T2, so it waited for nothing.
 
 The matrix, after cuts:
 
