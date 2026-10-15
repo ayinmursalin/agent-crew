@@ -1,7 +1,7 @@
 {
   "name": "crew",
   "description": "Multi-agent delivery workflow on top of Superpowers: work split into parts, implementer and reviewer agents, parallel tasks in isolated worktrees, and live progress on the Agent Board. Uses the superpowers plugin you have installed; install crew-full instead to get superpowers 7.0.0 with it.",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "author": {
     "name": "M Moersalin"
   },

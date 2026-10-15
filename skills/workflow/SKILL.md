@@ -137,7 +137,35 @@ Spec: <spec path>
 - `Model: hard` (uses `implementer_hard`) for concurrency, tricky algorithms, or a task that failed review before;
 - or a model value (`haiku`, `sonnet`, `opus`…). Leave the line out for the default. A task tagged `haiku` counts as mechanical: give its full code.
 
-**Also in the plan:** the base branch, the deviations from the reference, a "Not in this part" list, the expected test counts after each task, which tasks depend on which and which run in parallel, and a self-review (every spec line has a task, no placeholders, names consistent across tasks, every seam another task uses is exact). Pre-flight any code the plan does give for the language's known compile traps.
+**Dependency matrix.** Classify **every pair** of tasks (Ti, Tj), not just each task against the first one, as exactly one of:
+
+| Relation | Meaning | Edge |
+|---|---|---|
+| independent | no code or file link | none |
+| needs-code | Tj uses a type, member or seam Ti creates; name the symbol | Ti → Tj |
+| file-overlap | both edit the same file; name it | one way, in the order the plan picks |
+| test-infra-overlap | both edit a shared test double or helper; name it | one way, in the order the plan picks |
+| build-only | no code link, but they can't build at once in one folder | **never an edge:** each worktree builds in its own folder (§8) |
+
+- **Every edge names its cause:** a file path or a symbol. An edge with no named cause is removed.
+- **Write it** as a compact table (one row per pair) or as an edge list with causes, then the DAG it gives: each task with the tasks it waits on. Group tasks by DAG level for reading (level 0 waits on nothing; otherwise one more than its highest dependency); the run schedules by readiness, not by level (§8).
+- 4–8 tasks means 6–28 pairs. List them all; "the rest are independent" is fine only after each pair was checked.
+
+**Cut edges before finalizing.** For each edge, try:
+- **Move the shared edit earlier:** put a shared-file edit or a seam into the smallest earlier task that can hold it, ideally one both tasks already wait on. If adding a file edits a shared project file (e.g. an Xcode `project.pbxproj` without synchronized folders), that earlier task also adds a stub file for each later task, in the later task's own folder.
+- **Use a task-local fake** instead of extending a shared test double.
+- **Give exact seams:** signature, types and file path, verbatim, so a dependent can build against the seam as written without waiting for its review. A verbatim seam is what allows an early start (§8).
+
+Record every cut under **Edges cut** in the plan: the edge, its cause, and how it was cut. A worked example is in §8.
+
+**Also in the plan:** the base branch, the deviations from the reference, a "Not in this part" list, the expected test counts after each task, the dependency matrix, the edges cut and the DAG, and a self-review:
+- every spec line has a task, no placeholders, names consistent across tasks, every seam another task uses is exact;
+- every pair of tasks has been classified;
+- every edge names a file or symbol;
+- no task waits on a task it doesn't need;
+- the longest chain in the DAG is as short as the plan allows.
+
+Pre-flight any code the plan does give for the language's known compile traps.
 
 ## 5. Run start (the controller)
 
@@ -146,9 +174,10 @@ Do these in order before the first dispatch:
 2. **Confirm the base with the owner,** in the same AskUserQuestion batch as the product questions: "Part branch `feat/<milestone>-p<N>-<slug>` will be created from `<baseBranch>`. OK, or stack on another branch (e.g. the previous part's open PR)?" Never assume it silently. A different answer applies to this run only, unless the owner says to save it.
 3. **Create the branch** `feat/<milestone>-p<N>-<slug>` from the confirmed base, and record the base SHA.
 4. **First commit:** the overview update and the part plan, as `docs: <milestone> P<N> plan`, so every worktree created later can contain them.
-5. **Write the ledger run header** at the top of the ledger, newest run first (§6).
-6. **Create the board rows:** the run row (with the resolved `staleMinutes` and `tasks`), plus one `queued` row for every planned task's implementer and reviewer and one for the final review, so the overall % is honest.
-7. **Tell the owner:** "Choosing Subagent-Driven is your go-ahead for me to commit on this branch; push and PR need your finishing choice."
+5. **Compute the schedule** from the plan's dependency matrix (§4, §8): the tasks with no dependencies start now, from the plan commit; every other task waits on the tasks named by its edges. Show the owner the DAG: which tasks start now and where (main checkout or worktree), and which wait and on what.
+6. **Write the ledger run header** at the top of the ledger, newest run first (§6), with the edge list and the start order.
+7. **Create the board rows:** the run row (with the resolved `staleMinutes` and `tasks`), plus one `queued` row for every planned task's implementer and reviewer and one for the final review, so the overall % is honest.
+8. **Tell the owner:** "Choosing Subagent-Driven is your go-ahead for me to commit on this branch; push and PR need your finishing choice."
 
 ## 6. The ledger
 
@@ -161,14 +190,15 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 - Branch: <branch> (from <default or base branch> <base-sha>)
 - Started: YYYY-MM-DD
 - Models: implementer <m> / mechanical <m> / hard <m> / reviewer <m><, downgrade approved by owner>
-- Recovery: read this section and `git log --oneline <base-sha>..HEAD`; the next task is the first without a row.
+- Recovery: read this section and `git log --oneline <base-sha>..HEAD`; the next tasks are the ready ones without a row (§8).
 - Expected counts: <suite> <n> → <n> (T1) → …
-- Dependencies: <which tasks depend on which; which are parallel>
+- Edges: T1 → T2: <file or symbol>; T2 → T3: <file or symbol>; … (every other pair independent or build-only)
+- Start order: T1 (main) → {T2 (main), T4} → {T3, T5, T6}
 
 | Task | Status | Commit(s) | Notes |
 |---|---|---|---|
 | 0 Branch + plan | done | <sha> | … |
-| 1 <name> | done | <sha> | review: <verdict>; red: <first failing test line>; counts |
+| 1 <name> | done | <sha> | review: <verdict>; red: <first failing test line>; counts; base <sha>; unblocked: T2, T4 |
 
 **Final counts:** …
 
@@ -176,7 +206,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 - …
 ```
 
-- **Add a row right after each task's review,** with the verdict, the first red line the implementer quoted, and the counts. Record flaky tests and false-positive findings in Notes.
+- **Add a row right after each task's review,** with the verdict, the first red line the implementer quoted, and the counts. Rows go in landing order, not task order. Note the task's base SHA when it ran in a worktree, and which tasks its landing made ready (`unblocked: …`, or `unblocked: none`). Record flaky tests and false-positive findings in Notes.
 - **When the run ends,** change "(current)" to "(done — merged in #N)" (or `!N`).
 - **Compaction:** compact only right after a ledger row lands, never between two directly dependent tasks.
 
@@ -201,7 +231,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 **Batching reviews:** one review may cover several tasks only if no other open task depends on them. Never batch a task done by the `mechanical` model. A batched review gets its own `-t<N>-t<M>-reviewer` row; when it returns, finalize the per-task reviewer rows it replaces with `status: "done"` and `activity: "covered by <batched id>"`.
 
 **Follow-ups and re-review:**
-- Critical and Important issues are fixed before any task that depends on them; Minor ones are batched into one "review follow-ups" commit per part.
+- Critical and Important issues are fixed before any dependent that uses the affected seam starts (§8); Minor ones are batched into one "review follow-ups" commit per part.
 - Send every fix to `implementer` on `models.follow_up` (row `<runId>-t<N>-fix`, or `<runId>-followups` for the Minor batch), then a re-review (the review's id with `-r2`, `-r3`…, e.g. `<runId>-t<N>-reviewer-r2`).
 - Every Critical or Important fix gets a reviewer pass on its own commit range; the Minor follow-ups commit gets its own pass.
 - **Close resolved reviews on the board.** When a re-review of a fix passes (`✅ ready`, or `approve with follow-ups` with no Critical or Important issue left), set `resolvedBy: "<re-review agentId>"` on the original review row, and on every earlier re-review of the same findings that also returned `❌ changes needed`. Each is its own `update` pinned with `if_version`. Leave their `status` and `verdict` as they are: the board shows them as Resolved and keeps the original verdict visible.
@@ -218,22 +248,71 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 
 ## 8. Parallel tasks
 
-**This explicitly overrides SDD's "never dispatch implementation subagents in parallel",** under these rules only. Parallel tasks are allowed only when their files don't overlap.
+**This explicitly overrides SDD's "never dispatch implementation subagents in parallel",** under these rules only. Two tasks run at the same time only when no edge joins them in the plan's DAG (§4), so their files are disjoint.
 
-1. **Prep commit first.** One sequential task makes every shared-file edit the parallel tasks need (DI container, route tables, navigation switches, shared types and cross-task interfaces), plus a stub file per task in that task's own folder.
-2. **Each task owns its folders:** its source and its test files. A task that must touch a shared file is not parallel.
-3. **Know the worktree facts.** `isolation: "worktree"` creates the worktree from the repo's **default branch**, not the controller's current branch, whatever `baseBranch` says. So every parallel prompt gives the prep commit SHA, and the agent's first steps, in order, are:
+**Schedule from the DAG,** never "one prep task, then everything else":
+1. **Ready:** a task is ready when every task it depends on has **landed**: committed on the part branch (merged, if it ran in a worktree), and reviewed with no open Critical or Important finding that touches the seam it uses. A task with no dependencies is ready at run start, from the plan commit.
+2. **Dispatch every ready task at once,** up to `maxParallel` running at a time, as a rolling queue. Each time any task lands, re-check readiness and dispatch what became ready. Tasks dispatched together are a **ready set**.
+3. **The main checkout and worktrees run together.** At most one task runs in the main checkout, on the part branch, and it counts toward `maxParallel`; every other running task is in a worktree. Keep the first task in the main checkout when it starts alone, and give the main checkout to whichever ready task edits the most shared files.
+   - While a main-checkout task is running, the part branch is in use: hold merges and the §7 guard until it commits. A returned worktree task can be reviewed meanwhile only with its worktree path as the reviewer's working directory.
+4. **Base per task:** a worktree task's base SHA is the part-branch HEAD when it is dispatched, which contains all its dependencies (it is only ready once they have landed). There is no fixed "prep SHA". Record the base in the task's ledger row.
+5. **Early start (optional):** a dependent may start once its dependency is committed, before that commit's review, only when every seam it uses is given verbatim in the plan. Its base is then the dependency's commit; note `early start on T<N>` in its ledger row.
+   - Hold its merge until the dependency's review has no open Critical or Important finding on that seam.
+   - If a fix changed the seam, re-sync the dependent before its merge and review: once its agent has returned, rebase its branch onto the part-branch HEAD (`git -C <worktree path> rebase --onto <new-base> <old-base>`; the harness-made branch is not shared) and run its tests. A failure goes to a fresh `implementer` (`-fix` row) based on the rebased branch, never to the returned agent.
+
+**Safety rules (unchanged by the schedule):**
+1. **Disjoint files.** Each task owns its folders: its source and its test files. Tasks running at the same time never edit the same file, shared test double or helper; the matrix makes any such pair an edge.
+2. **Know the worktree facts.** `isolation: "worktree"` creates the worktree from the repo's **default branch**, not the controller's current branch, whatever `baseBranch` says. So every worktree prompt gives the task's base SHA, and the agent's first steps, in order, are:
    1. **Prove it is in a worktree:** `git rev-parse --path-format=absolute --git-dir` must differ from `git rev-parse --path-format=absolute --git-common-dir`. If they match, it is in the main checkout: report BLOCKED and change nothing.
-   2. `git reset --keep <prep-sha>` (safe: a fresh worktree has no changes, and `--keep` refuses if there are any).
-   3. `git merge-base --is-ancestor <prep-sha> HEAD`; report BLOCKED if it fails.
+   2. `git reset --keep <base-sha>` (safe: a fresh worktree has no changes, and `--keep` refuses if there are any).
+   3. `git merge-base --is-ancestor <base-sha> HEAD`; report BLOCKED if it fails.
    4. Run `worktreeSetup`, if the prompt gives one.
-4. **Never resume a returned parallel agent with SendMessage.** A worktree whose agent finished without changes is cleaned up, so a resumed agent wakes in the main checkout. Re-dispatch it fresh with a new `-r2` row.
-5. **Dispatch** with `isolation: "worktree"`, all in one message, at most `maxParallel` at a time. With more tasks than slots, keep a rolling queue: start the next as each one returns. Pass the prep SHA, `worktreeSetup`, any parallel-safe test command CLAUDE.md lists, and the board details.
+3. **A build folder per worktree.** Each worktree builds into its own build or derived-data folder inside the worktree (e.g. Xcode's `-derivedDataPath`), never one shared with the main checkout or another worktree. This is why build-only pairs are never edges.
+4. **Never resume a returned worktree agent with SendMessage.** A worktree whose agent finished without changes is cleaned up, so a resumed agent wakes in the main checkout. Re-dispatch it fresh with a new `-r2` row.
+5. **Dispatch** with `isolation: "worktree"`, every ready task in one message. Pass the base SHA, `worktreeSetup`, the build-folder rule, any parallel-safe test command CLAUDE.md lists, and the board details.
    - **Finalize each returning agent's row first** (§7 "Finalize on return"), before merging it or starting the next one in the queue. Parallel agents miss their own board writes as often as sequential ones.
-6. **Merge** in task order: the Agent result names the worktree branch; run `git merge --no-ff <branch>` into the part branch, then the full suite after each merge. Resolve leftover conflicts yourself.
-7. **Review after the merge,** on the part branch, for the merged range (or give the reviewer the worktree path as its working directory before merging).
-8. **Cleanup:** leave harness-made worktrees to the harness (the finishing skill says never remove them); remove only worktrees you created yourself. `.gitignore` must list `.claude/worktrees/` (init adds it).
-9. **Shared devices** (simulator, emulator, fixed ports, one dev database) are used only by the controller, after merges.
+6. **Merge** each returned task once the main checkout is free: the Agent result names the worktree branch; run `git merge --no-ff <branch>` into the part branch, then the full suite after each merge. Resolve leftover conflicts yourself; a conflict means the matrix missed an edge, so log it in the ledger.
+7. **Review after the merge,** on the part branch, for the merged range (or give the reviewer the worktree path as its working directory before merging). The task lands when that review has no open Critical or Important finding.
+8. **Critical and Important fixes land** (fix plus passing re-review, §7) before any dependent that uses the affected seam starts, or, under early start, before that dependent merges.
+9. **Cleanup:** leave harness-made worktrees to the harness (the finishing skill says never remove them); remove only worktrees you created yourself. `.gitignore` must list `.claude/worktrees/` (init adds it).
+10. **Shared devices** (simulator, emulator, fixed ports, one dev database) are used only by the controller, after merges.
+
+**Worked example: belajar-kanji-ios M3·P0, 6 tasks.** T1 Core (models and `KanjiRepository`, in `Core/`), T2 app wiring (`App/AppContainer.swift`, `App/AppRoute.swift`), T3 lesson screen, T4 audio, T5 review screen, T6 settings screen. The project uses Xcode synchronized folders, so adding a file edits no project file. The old rule made T2 the prep commit and ran T3–T6 after it. T4 never used anything from T2, but nobody compared T4 with T2, so it waited for nothing.
+
+The matrix, after cuts:
+
+| Pair | Relation | Cause |
+|---|---|---|
+| T1–T2 | needs-code | `KanjiRepository` (T2 registers it in `AppContainer`) |
+| T1–T3 | needs-code | `KanjiRepository.lessons(level:)` |
+| T1–T4 | needs-code | `AudioClip` |
+| T1–T5 | needs-code | `ReviewScheduler.nextDue(after:)` |
+| T1–T6 | needs-code | `UserSettings` |
+| T2–T3 | needs-code | `AppRoute.lesson(id:)`, `AppContainer.makeLessonViewModel(id:)` |
+| T2–T4 | build-only | both build the same app target; no code link, so no edge |
+| T2–T5 | needs-code | `AppRoute.review`, `AppContainer.makeReviewViewModel()` |
+| T2–T6 | needs-code | `AppRoute.settings` |
+| T3–T5 | independent | cut, see below |
+| T3–T6, T5–T6 | independent | cut, see below |
+| T3–T4, T4–T5, T4–T6 | independent | no shared file or symbol |
+
+Edges cut:
+- T3–T5, T3–T6, T5–T6 file-overlap on `Resources/Localizable.xcstrings`: every string key moved into T2, which already edits shared files and which all three wait on.
+- T3–T5 test-infra-overlap on `Tests/Support/FakeKanjiRepository.swift`: T5 uses a task-local `FakeReviewSource` in its own test folder; only T3 extends the shared fake.
+
+The DAG: T1 → T2, T3, T4, T5, T6; T2 → T3, T5, T6. Levels: 0 {T1}, 1 {T2, T4}, 2 {T3, T5, T6}. Longest chain: T1 → T2 → T3.
+
+The schedule (`maxParallel` 4):
+
+| When | Ready set | Where | Base |
+|---|---|---|---|
+| Run start | T1 | main checkout | plan commit |
+| T1 lands | T2, T4 | T2 main checkout; T4 worktree | T4: T1's commit |
+| T4 returns | none | merge held until T2 commits; unblocks nothing | |
+| T2 lands | T3, T5, T6 | three worktrees; T4 merged, then reviewed | part-branch HEAD (T1, T2, T4) |
+| T3, T5, T6 land | none | final review (§10) | |
+
+T4 now runs alongside T2 instead of after it, so a slow T4 no longer extends the run. Since `AppRoute` and the `AppContainer` factories are given verbatim in the plan, T3, T5 and T6 could also take an early start once T2 is committed.
 
 ## 9. Don't wait for merges
 
@@ -252,7 +331,7 @@ The ledger (config `ledger`) is what lets a run survive compaction. **Only the c
 
 ## 11. Resume and status
 
-- **Resume:** read the ledger's "(current)" section and run `git log --oneline <base-sha>..HEAD`. The next task is the first without a ledger row. A commit with no row means its review never landed: review it before moving on. Re-dispatch anything unfinished fresh, never with SendMessage.
+- **Resume:** read the ledger's "(current)" section and run `git log --oneline <base-sha>..HEAD`. The next tasks are the ready ones without a ledger row, from the edges in the run header (§8). A commit with no row means its review never landed: review it before moving on. Re-dispatch anything unfinished fresh, never with SendMessage.
 - **Status:** answer from the ledger and git, not the board: tasks done and remaining, the last verdict, the counts against expected, and anything blocked. Add the board link if there is one.
 
 ## 12. Agent Board
